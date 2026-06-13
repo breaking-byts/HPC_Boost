@@ -1,0 +1,519 @@
+{
+  "total_ranked_samples": 3470,
+  "unique_top4_sets": 3348,
+  "unique_top4_ratio": 0.9648414985590779,
+  "top10_top4_sets": [
+    {
+      "events": [
+        "MLdULLCM_LDRAM",
+        "FP_Assist_ANY",
+        "HW_Intrs_Rcvd",
+        "M_Ld_LLCH.XS_M"
+      ],
+      "count": 5
+    },
+    {
+      "events": [
+        "HW_Intrs_Rcvd",
+        "MLdULLCM_LDRAM",
+        "FP_Assist_ANY",
+        "M_Ld_Ret_L1Hit"
+      ],
+      "count": 4
+    },
+    {
+      "events": [
+        "FP_Assist_ANY",
+        "DTLBStrMiss_WC",
+        "MLdULLCM_LDRAM",
+        "DTLBStoreMissW"
+      ],
+      "count": 4
+    },
+    {
+      "events": [
+        "HW_Intrs_Rcvd",
+        "Uops_F.D.",
+        "uop_p0",
+        "Macrofus"
+      ],
+      "count": 4
+    },
+    {
+      "events": [
+        "HW_Intrs_Rcvd",
+        "uop_p4",
+        "uop_p2",
+        "uop_p3"
+      ],
+      "count": 4
+    },
+    {
+      "events": [
+        "MLdULLCM_LDRAM",
+        "HW_Intrs_Rcvd",
+        "Loop_uops",
+        "DSB2MIT_SW_CNT"
+      ],
+      "count": 4
+    },
+    {
+      "events": [
+        "HW_Intrs_Rcvd",
+        "Loop_uops",
+        "MLdULLCM_LDRAM",
+        "BrMispRetd_All"
+      ],
+      "count": 3
+    },
+    {
+      "events": [
+        "DTLBStrMiss_WC",
+        "DTLBStoreMissW",
+        "FP_Assist_ANY",
+        "DTLBStrMiss_SH"
+      ],
+      "count": 3
+    },
+    {
+      "events": [
+        "MLdULLCM_LDRAM",
+        "FP_Assist_ANY",
+        "HW_Intrs_Rcvd",
+        "L3_LAT_C_Miss"
+      ],
+      "count": 3
+    },
+    {
+      "events": [
+        "HW_Intrs_Rcvd",
+        "MLdULLCM_LDRAM",
+        "FP_Assist_ANY",
+        "ICache_Misses"
+      ],
+      "count": 3
+    }
+  ],
+  "category_top_events": {
+    "backdoor": [
+      {
+        "event_name": "HW_Intrs_Rcvd",
+        "count": 270
+      },
+      {
+        "event_name": "MLdULLCM_LDRAM",
+        "count": 141
+      },
+      {
+        "event_name": "CPL_CYCLES(R0)",
+        "count": 79
+      },
+      {
+        "event_name": "Loop_uops",
+        "count": 77
+      },
+      {
+        "event_name": "FP_Assist_ANY",
+        "count": 68
+      },
+      {
+        "event_name": "Load_Hit_Pre",
+        "count": 59
+      },
+      {
+        "event_name": "Cach_uops",
+        "count": 44
+      },
+      {
+        "event_name": "Mov_elim",
+        "count": 40
+      },
+      {
+        "event_name": "IDQ_All_DSB_C",
+        "count": 34
+      },
+      {
+        "event_name": "Macrofus",
+        "count": 34
+      }
+    ],
+    "banker": [
+      {
+        "event_name": "HW_Intrs_Rcvd",
+        "count": 21
+      },
+      {
+        "event_name": "CPL_CYCLES(R0)",
+        "count": 10
+      },
+      {
+        "event_name": "Load_Hit_Pre",
+        "count": 8
+      },
+      {
+        "event_name": "Mov_elim",
+        "count": 8
+      },
+      {
+        "event_name": "Loop_uops",
+        "count": 7
+      },
+      {
+        "event_name": "uop_p0",
+        "count": 5
+      },
+      {
+        "event_name": "Uops_F.D.",
+        "count": 5
+      },
+      {
+        "event_name": "Macrofus",
+        "count": 5
+      },
+      {
+        "event_name": "Ref_cyc",
+        "count": 5
+      },
+      {
+        "event_name": "DSB2MIT_SW_CNT",
+        "count": 5
+      }
+    ],
+    "cryptominer": [
+      {
+        "event_name": "DTLBStrMiss_SH",
+        "count": 60
+      },
+      {
+        "event_name": "DTLBLoadMiss_W",
+        "count": 46
+      },
+      {
+        "event_name": "M_Ld_Ret_L2Hit",
+        "count": 40
+      },
+      {
+        "event_name": "Mov_elim",
+        "count": 39
+      },
+      {
+        "event_name": "DTLBStoreMissW",
+        "count": 35
+      },
+      {
+        "event_name": "DTLBLoadMissWC",
+        "count": 34
+      },
+      {
+        "event_name": "BrMispred",
+        "count": 31
+      },
+      {
+        "event_name": "BrMispExec_Any",
+        "count": 25
+      },
+      {
+        "event_name": "BrMispRetd_All",
+        "count": 23
+      },
+      {
+        "event_name": "HW_Intrs_Rcvd",
+        "count": 23
+      }
+    ],
+    "deceptor": [
+      {
+        "event_name": "MLdULLCM_LDRAM",
+        "count": 228
+      },
+      {
+        "event_name": "HW_Intrs_Rcvd",
+        "count": 174
+      },
+      {
+        "event_name": "FP_Assist_ANY",
+        "count": 166
+      },
+      {
+        "event_name": "Mov_elim",
+        "count": 94
+      },
+      {
+        "event_name": "DTLBStoreMissW",
+        "count": 91
+      },
+      {
+        "event_name": "DTLBStrMiss_SH",
+        "count": 90
+      },
+      {
+        "event_name": "CPL_CYCLES(R0)",
+        "count": 86
+      },
+      {
+        "event_name": "BrMispExec_Any",
+        "count": 85
+      },
+      {
+        "event_name": "BrMispRetd_All",
+        "count": 77
+      },
+      {
+        "event_name": "BrMispred",
+        "count": 74
+      }
+    ],
+    "downloader": [
+      {
+        "event_name": "HW_Intrs_Rcvd",
+        "count": 398
+      },
+      {
+        "event_name": "Loop_uops",
+        "count": 201
+      },
+      {
+        "event_name": "MLdULLCM_LDRAM",
+        "count": 139
+      },
+      {
+        "event_name": "FP_Assist_ANY",
+        "count": 123
+      },
+      {
+        "event_name": "CPL_CYCLES(R0)",
+        "count": 114
+      },
+      {
+        "event_name": "Load_Hit_Pre",
+        "count": 85
+      },
+      {
+        "event_name": "Cach_uops",
+        "count": 73
+      },
+      {
+        "event_name": "Mov_elim",
+        "count": 67
+      },
+      {
+        "event_name": "IDQ_All_DSB_C",
+        "count": 60
+      },
+      {
+        "event_name": "DSB2MIT_SW_CNT",
+        "count": 54
+      }
+    ],
+    "normal": [
+      {
+        "event_name": "HW_Intrs_Rcvd",
+        "count": 237
+      },
+      {
+        "event_name": "MLdULLCM_LDRAM",
+        "count": 207
+      },
+      {
+        "event_name": "FP_Assist_ANY",
+        "count": 149
+      },
+      {
+        "event_name": "CPL_CYCLES(R0)",
+        "count": 121
+      },
+      {
+        "event_name": "Load_Hit_Pre",
+        "count": 115
+      },
+      {
+        "event_name": "DTLBStrMiss_SH",
+        "count": 98
+      },
+      {
+        "event_name": "Mov_elim",
+        "count": 86
+      },
+      {
+        "event_name": "DTLBStoreMissW",
+        "count": 81
+      },
+      {
+        "event_name": "M_Ld_Ret_L2Hit",
+        "count": 75
+      },
+      {
+        "event_name": "L3_LAT_C_Miss",
+        "count": 65
+      }
+    ],
+    "pua": [
+      {
+        "event_name": "HW_Intrs_Rcvd",
+        "count": 341
+      },
+      {
+        "event_name": "MLdULLCM_LDRAM",
+        "count": 244
+      },
+      {
+        "event_name": "DTLBStrMiss_SH",
+        "count": 204
+      },
+      {
+        "event_name": "DTLBStoreMissW",
+        "count": 166
+      },
+      {
+        "event_name": "CPL_CYCLES(R0)",
+        "count": 153
+      },
+      {
+        "event_name": "Mov_elim",
+        "count": 149
+      },
+      {
+        "event_name": "FP_Assist_ANY",
+        "count": 137
+      },
+      {
+        "event_name": "DTLBStrMiss_WC",
+        "count": 116
+      },
+      {
+        "event_name": "DTLBLoadMiss_W",
+        "count": 114
+      },
+      {
+        "event_name": "Load_Hit_Pre",
+        "count": 114
+      }
+    ],
+    "ransomware": [
+      {
+        "event_name": "HW_Intrs_Rcvd",
+        "count": 105
+      },
+      {
+        "event_name": "MLdULLCM_LDRAM",
+        "count": 94
+      },
+      {
+        "event_name": "CPL_CYCLES(R0)",
+        "count": 56
+      },
+      {
+        "event_name": "DTLBStrMiss_WC",
+        "count": 44
+      },
+      {
+        "event_name": "FP_Assist_ANY",
+        "count": 42
+      },
+      {
+        "event_name": "DTLBStoreMissW",
+        "count": 41
+      },
+      {
+        "event_name": "Load_Hit_Pre",
+        "count": 28
+      },
+      {
+        "event_name": "DTLBStrMiss_SH",
+        "count": 22
+      },
+      {
+        "event_name": "IDQ_All_DSB_C",
+        "count": 21
+      },
+      {
+        "event_name": "M_Ld_Ret_L2Hit",
+        "count": 21
+      }
+    ],
+    "spyware": [
+      {
+        "event_name": "HW_Intrs_Rcvd",
+        "count": 38
+      },
+      {
+        "event_name": "CPL_CYCLES(R0)",
+        "count": 20
+      },
+      {
+        "event_name": "Load_Hit_Pre",
+        "count": 18
+      },
+      {
+        "event_name": "Loop_uops",
+        "count": 14
+      },
+      {
+        "event_name": "M_Ld_Ret_L1Hit",
+        "count": 11
+      },
+      {
+        "event_name": "MLdULLCM_LDRAM",
+        "count": 11
+      },
+      {
+        "event_name": "M_Ld_Ret_L2Hit",
+        "count": 9
+      },
+      {
+        "event_name": "Cach_uops",
+        "count": 8
+      },
+      {
+        "event_name": "BrMispred",
+        "count": 7
+      },
+      {
+        "event_name": "L3_LAT_C_Miss",
+        "count": 7
+      }
+    ],
+    "unknown": [
+      {
+        "event_name": "HW_Intrs_Rcvd",
+        "count": 3
+      },
+      {
+        "event_name": "L3_LAT_C_Miss",
+        "count": 2
+      },
+      {
+        "event_name": "uop_p5",
+        "count": 2
+      },
+      {
+        "event_name": "CPL_CYCLES(R0)",
+        "count": 2
+      },
+      {
+        "event_name": "MLdULLCM_LDRAM",
+        "count": 1
+      },
+      {
+        "event_name": "L1D_Rep",
+        "count": 1
+      },
+      {
+        "event_name": "res.stl.",
+        "count": 1
+      },
+      {
+        "event_name": "Dec_uops",
+        "count": 1
+      },
+      {
+        "event_name": "M_Ld_Ret_L3Hit",
+        "count": 1
+      },
+      {
+        "event_name": "BrMispred",
+        "count": 1
+      }
+    ]
+  }
+}

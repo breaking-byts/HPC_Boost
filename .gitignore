@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+.env
+venv/
+env/
+
+# HPC-Boost specific ignores
+data/
+logs/
+outputs/
+*.csv
+*.log

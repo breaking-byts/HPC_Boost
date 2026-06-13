@@ -1,0 +1,149 @@
+{
+  "per_strategy_detector": [
+    {
+      "strategy": "2SMaRT",
+      "detector": "IsolationForest",
+      "mean": 0.6665,
+      "std": 0.0192
+    },
+    {
+      "strategy": "2SMaRT",
+      "detector": "OCSVM",
+      "mean": 0.6771,
+      "std": 0.0167
+    },
+    {
+      "strategy": "2SMaRT",
+      "detector": "XGBoost",
+      "mean": 0.8982,
+      "std": 0.0061
+    },
+    {
+      "strategy": "Global-Fixed",
+      "detector": "IsolationForest",
+      "mean": 0.4474,
+      "std": 0.0182
+    },
+    {
+      "strategy": "Global-Fixed",
+      "detector": "OCSVM",
+      "mean": 0.4714,
+      "std": 0.018
+    },
+    {
+      "strategy": "Global-Fixed",
+      "detector": "XGBoost",
+      "mean": 0.9019,
+      "std": 0.0063
+    },
+    {
+      "strategy": "HPC-Boost",
+      "detector": "IsolationForest",
+      "mean": 0.6178,
+      "std": 0.018
+    },
+    {
+      "strategy": "HPC-Boost",
+      "detector": "OCSVM",
+      "mean": 0.5938,
+      "std": 0.0219
+    },
+    {
+      "strategy": "HPC-Boost",
+      "detector": "XGBoost",
+      "mean": 0.9026,
+      "std": 0.0047
+    },
+    {
+      "strategy": "PCA*",
+      "detector": "IsolationForest",
+      "mean": 0.535,
+      "std": 0.0162
+    },
+    {
+      "strategy": "PCA*",
+      "detector": "OCSVM",
+      "mean": 0.5495,
+      "std": 0.0155
+    },
+    {
+      "strategy": "PCA*",
+      "detector": "XGBoost",
+      "mean": 0.9099,
+      "std": 0.0061
+    },
+    {
+      "strategy": "Random",
+      "detector": "IsolationForest",
+      "mean": 0.5055,
+      "std": 0.0118
+    },
+    {
+      "strategy": "Random",
+      "detector": "OCSVM",
+      "mean": 0.5394,
+      "std": 0.011
+    },
+    {
+      "strategy": "Random",
+      "detector": "XGBoost",
+      "mean": 0.9018,
+      "std": 0.0022
+    }
+  ],
+  "per_strategy": [
+    {
+      "strategy": "2SMaRT",
+      "F1_mean": 0.7473,
+      "F1_std": 0.1114,
+      "Prec_mean": 0.8813,
+      "Recall_mean": 0.6751
+    },
+    {
+      "strategy": "HPC-Boost",
+      "F1_mean": 0.7047,
+      "F1_std": 0.146,
+      "Prec_mean": 0.8552,
+      "Recall_mean": 0.633
+    },
+    {
+      "strategy": "PCA*",
+      "F1_mean": 0.6648,
+      "F1_std": 0.1799,
+      "Prec_mean": 0.8628,
+      "Recall_mean": 0.5853
+    },
+    {
+      "strategy": "Random",
+      "F1_mean": 0.6489,
+      "F1_std": 0.1859,
+      "Prec_mean": 0.855,
+      "Recall_mean": 0.5704
+    },
+    {
+      "strategy": "Global-Fixed",
+      "F1_mean": 0.6069,
+      "F1_std": 0.2166,
+      "Prec_mean": 0.8398,
+      "Recall_mean": 0.5324
+    }
+  ],
+  "config": {
+    "K": 4,
+    "folds": 5,
+    "random_seeds": 5,
+    "samples": 3470,
+    "malware": 2884,
+    "benign": 586,
+    "ranking_coverage": "3470/3470"
+  },
+  "methodology": [
+    "2SMaRT fitted per-fold (no leakage)",
+    "Global-Fixed fallback uses fold-local variance (no leakage)",
+    "HPC-Boost rankings computed per-sample (no cross-sample leakage)",
+    "HPC-Boost scored on full fold; missing rankings default to pred=0",
+    "PCA* uses all 55 events (upper bound, infeasible with 4 PMU regs)",
+    "Random baseline averaged over 5 seeds",
+    "Detector params: OCSVM(nu=0.3), IF(cont=0.3), XGB(n_est=100, depth=4)"
+  ]
+}

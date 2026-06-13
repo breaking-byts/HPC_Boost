@@ -1,0 +1,126 @@
+{
+  "per_strategy_detector": [
+    {
+      "strategy": "PCA",
+      "detector": "XGBoost",
+      "F1_mean": 0.7842,
+      "F1_std": 0.0765
+    },
+    {
+      "strategy": "Random",
+      "detector": "XGBoost",
+      "F1_mean": 0.7785,
+      "F1_std": 0.0432
+    },
+    {
+      "strategy": "HPC-Boost",
+      "detector": "XGBoost",
+      "F1_mean": 0.7369,
+      "F1_std": 0.1288
+    },
+    {
+      "strategy": "2SMaRT",
+      "detector": "XGBoost",
+      "F1_mean": 0.7357,
+      "F1_std": 0.0196
+    },
+    {
+      "strategy": "PCA",
+      "detector": "OCSVM",
+      "F1_mean": 0.7055,
+      "F1_std": 0.0557
+    },
+    {
+      "strategy": "Global-Fixed",
+      "detector": "XGBoost",
+      "F1_mean": 0.7001,
+      "F1_std": 0.1176
+    },
+    {
+      "strategy": "HPC-Boost",
+      "detector": "OCSVM",
+      "F1_mean": 0.6441,
+      "F1_std": 0.17
+    },
+    {
+      "strategy": "Random",
+      "detector": "OCSVM",
+      "F1_mean": 0.6215,
+      "F1_std": 0.0405
+    },
+    {
+      "strategy": "Global-Fixed",
+      "detector": "OCSVM",
+      "F1_mean": 0.5996,
+      "F1_std": 0.0885
+    },
+    {
+      "strategy": "PCA",
+      "detector": "IsolationForest",
+      "F1_mean": 0.5826,
+      "F1_std": 0.1892
+    },
+    {
+      "strategy": "2SMaRT",
+      "detector": "OCSVM",
+      "F1_mean": 0.5507,
+      "F1_std": 0.1573
+    },
+    {
+      "strategy": "Random",
+      "detector": "IsolationForest",
+      "F1_mean": 0.5281,
+      "F1_std": 0.1428
+    },
+    {
+      "strategy": "HPC-Boost",
+      "detector": "IsolationForest",
+      "F1_mean": 0.5164,
+      "F1_std": 0.1222
+    },
+    {
+      "strategy": "Global-Fixed",
+      "detector": "IsolationForest",
+      "F1_mean": 0.4937,
+      "F1_std": 0.0788
+    },
+    {
+      "strategy": "2SMaRT",
+      "detector": "IsolationForest",
+      "F1_mean": 0.4834,
+      "F1_std": 0.0803
+    }
+  ],
+  "per_strategy": [
+    {
+      "strategy": "PCA",
+      "F1_mean": 0.6908,
+      "F1_std": 0.142
+    },
+    {
+      "strategy": "Random",
+      "F1_mean": 0.6427,
+      "F1_std": 0.1351
+    },
+    {
+      "strategy": "HPC-Boost",
+      "F1_mean": 0.6325,
+      "F1_std": 0.1613
+    },
+    {
+      "strategy": "Global-Fixed",
+      "F1_mean": 0.5978,
+      "F1_std": 0.1248
+    },
+    {
+      "strategy": "2SMaRT",
+      "F1_mean": 0.5899,
+      "F1_std": 0.1457
+    }
+  ],
+  "config": {
+    "samples": 50,
+    "k": 4,
+    "folds": 5
+  }
+}
