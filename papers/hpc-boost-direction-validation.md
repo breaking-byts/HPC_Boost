@@ -30,7 +30,10 @@ beam-search subset. It recovered 436 of the 565 2SMaRT errors and reduced total
 classification errors by 77.2%. However, this is a theoretical ceiling, not a
 deployable detector. It validates the existence of conditional headroom; it does
 not yet prove that a static-binary recommender can learn to realize that
-headroom. The correct next step is a controlled binary-tracing pilot that builds
+headroom. A capped-pool analysis shows that a top-25 candidate oracle achieves
+0.9502 F1, while the full approximately 1,200-candidate pool reaches 0.9781 F1;
+therefore, part of the ceiling comes from post-hoc selection over a large pool.
+The correct next step is a controlled binary-tracing pilot that builds
 per-binary utility targets from multiple runs, then tests whether static binary
 features predict those targets.
 
@@ -260,6 +263,19 @@ Across all 3,470 samples:
 Candidate-Oracle eliminated all false negatives and reduced false positives
 from 504 to 129 relative to 2SMaRT.
 
+The baseline false-positive rate is high because the dataset is malware-heavy:
+
+| Strategy | FPR | Balanced Accuracy |
+|---|---:|---:|
+| 2SMaRT | 0.8601 | 0.5594 |
+| Global-Beam | 0.7935 | 0.5913 |
+| Candidate-Oracle | 0.2201 | 0.8899 |
+
+This means the oracle's practical gain is mostly a false-positive reduction
+gain on benign samples, while preserving malware recall. This is operationally
+valuable, but it also means future experiments must report FPR, balanced
+accuracy, and TPR at fixed FPR rather than relying only on malware-weighted F1.
+
 The total error count changed as follows:
 
 | Strategy | Errors | Error Rate |
@@ -280,7 +296,42 @@ Relative to Global-Beam, Candidate-Oracle recovered 405 of 534 errors:
 \frac{405}{534} = 75.8\% \text{ error reduction}.
 \]
 
-### 5.3 Per-Fold Stability
+### 5.3 Capped-Pool Oracle Analysis
+
+The full Candidate-Oracle can select among roughly 1,200 retained candidates per
+fold. This makes it an intentionally optimistic ceiling. To understand how much
+of the gain comes from a large candidate pool, we recomputed the oracle by
+allowing routing only within the top \(P\) candidates ordered by training
+inner-CV AUCPR.
+
+| Pool Size \(P\) | F1 | Precision | Recall | Accuracy | FPR | Errors |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 0.9134 | 0.8582 | 0.9761 | 0.8461 | 0.7935 | 534 |
+| 2 | 0.9213 | 0.8660 | 0.9840 | 0.8602 | 0.7491 | 485 |
+| 5 | 0.9351 | 0.8822 | 0.9948 | 0.8853 | 0.6536 | 398 |
+| 10 | 0.9406 | 0.8901 | 0.9972 | 0.8954 | 0.6058 | 363 |
+| 25 | 0.9502 | 0.9060 | 0.9990 | 0.9130 | 0.5102 | 302 |
+| 50 | 0.9570 | 0.9181 | 0.9993 | 0.9254 | 0.4386 | 259 |
+| 100 | 0.9620 | 0.9267 | 1.0000 | 0.9343 | 0.3891 | 228 |
+| 500 | 0.9733 | 0.9481 | 1.0000 | 0.9545 | 0.2696 | 158 |
+| Full pool | 0.9781 | 0.9572 | 1.0000 | 0.9628 | 0.2201 | 129 |
+
+This table materially changes the interpretation. The full-pool number should
+be presented as the most optimistic ceiling, not as the likely performance of a
+learned recommender. The top-25 result, 0.9502 F1, is a more conservative and
+more learnable ceiling because it restricts routing to the highest-ranked
+candidates. It still beats 2SMaRT by 0.0412 F1 and Global-Beam by 0.0368 F1.
+
+The improvement from \(P=25\) to the full pool may reflect real conditional
+utility among many near-equivalent subsets, but it may also reflect post-hoc
+multiple-comparison effects. Importantly, the deeper candidates are not
+obviously poor models: their inner-CV AUCPR remains high, typically around
+0.93-0.94 at the bottom of the retained pool. The correct criticism is therefore
+not that these are necessarily random low-performing models, but that a
+label-assisted router over a large pool will overestimate deployable
+performance.
+
+### 5.4 Per-Fold Stability
 
 Candidate-Oracle beat 2SMaRT on every fold:
 
@@ -451,6 +502,16 @@ runs of the same binary require different event subsets due to input,
 scheduling, or phase behavior, then one static top-4 label per binary may be
 unstable. The new data collection must measure this.
 
+### It does not rule out trace-level split leakage
+
+The current oracle uses stratified random folds over RaDaR samples. If the
+dataset contains repeated executions of the same benign program, closely related
+malware variants, or family-level near-duplicates that cross train and test
+folds, both the baseline and oracle numbers may be optimistic. The artifact set
+available for this memo contains sample IDs and labels but not enough metadata
+to prove program- or family-disjoint splitting. A reviewer could reasonably ask
+for GroupKFold or leave-family-out evaluation.
+
 ### It does not prove cross-machine generalization
 
 The oracle is tied to a dataset and event universe. A recommender trained on one
@@ -471,6 +532,10 @@ traces for recommender training. It does **not** justify blindly collecting a
 large dataset without first validating the target-construction protocol.
 
 The recommended next phase is a pilot with explicit go/no-go criteria.
+
+Before publication, the RaDaR oracle should also be rerun or supplemented with
+group-aware splits if suitable grouping metadata is available. At minimum, the
+paper should explicitly disclose that the present run is sample-stratified.
 
 ### 9.1 Unit of Recommendation
 
@@ -541,6 +606,12 @@ Pause or redesign if:
 - or the gain comes only from benign/malware label leakage rather than binary
   structure.
 
+For the pilot, a useful initial target is not the full-pool \(P \approx 1200\)
+oracle. Use a capped pool such as \(P=25\) or \(P=50\) for the primary
+recommender target, and report regret against both the capped oracle and the
+full oracle. This prevents the recommender from being judged against a target
+that may be dominated by post-hoc pool-size effects.
+
 ## 10. Recommended Recommender Target
 
 The new result argues for a utility-aware recommender. The target should not be
@@ -598,6 +669,13 @@ held-out binaries using only static features.
 Correct response: the custom data collection must use grouped splits by binary,
 family, and collection session; cross-session and cross-machine tests should be
 added where possible.
+
+### Risk 3a: "The oracle gain is inflated by selecting over too many candidates"
+
+Correct response: report capped-pool oracle curves. The full-pool Candidate-
+Oracle is a ceiling. The top-25 capped oracle still shows a meaningful gain
+over 2SMaRT, but the full-pool number should not be used as the expected
+recommender performance.
 
 ### Risk 4: "The oracle is mostly fixing benign false positives"
 
