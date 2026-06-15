@@ -36,7 +36,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import GroupKFold, KFold, StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
@@ -187,7 +187,15 @@ def load_and_aggregate(
     csv_name: str,
     sample_limit: Optional[int],
     chunksize: int,
-) -> Tuple[np.ndarray, np.ndarray, List[str], List[str], List[str]]:
+    collect_metadata: bool = True,
+) -> Tuple[
+    np.ndarray,
+    np.ndarray,
+    List[str],
+    List[str],
+    List[str],
+    Dict[str, List[str]],
+]:
     loader = RadarDataLoader(
         root_dir=radar_root,
         csv_name=csv_name,
@@ -200,11 +208,16 @@ def load_and_aggregate(
 
     rows: List[Dict[str, float]] = []
     labels: List[int] = []
+    metadata: Dict[str, List[str]] = {"category": [], "family": [], "full_label": []}
     event_names = list(loader.hpc_columns)
     for idx, sample_id in enumerate(sample_ids, start=1):
         trace = traces[sample_id]
         rows.append(aggregate_trace(trace.events))
         labels.append(trace.binary_label)
+        if collect_metadata:
+            metadata["category"].append(trace.category)
+            metadata["family"].append(trace.family)
+            metadata["full_label"].append(trace.full_label)
         if idx % 250 == 0 or idx == len(sample_ids):
             print(f"  aggregated {idx}/{len(sample_ids)}", flush=True)
 
@@ -218,7 +231,143 @@ def load_and_aggregate(
     y = np.asarray(labels, dtype=np.int32)
     del frame, rows
     gc.collect()
-    return X, y, sample_ids, event_names, feature_names
+    return X, y, sample_ids, event_names, feature_names, metadata
+
+
+def resolve_group_values(
+    group_column: Optional[str],
+    sample_ids: Sequence[str],
+    metadata: Dict[str, List[str]],
+) -> Optional[np.ndarray]:
+    if group_column is None:
+        return None
+
+    # Aliases map user-facing CSV column names to metadata dict keys.
+    # The CSV column names ("family_gene", "goal", "Filename") must match
+    # RadarDataLoader.family_column, .category_column, and .sample_id_column.
+    aliases = {
+        "Filename": "sample_id",
+        "filename": "sample_id",
+        "sample_id": "sample_id",
+        "goal": "category",
+        "category": "category",
+        "family_gene": "family",
+        "family": "family",
+        "full_label": "full_label",
+    }
+    key = aliases.get(group_column, group_column)
+
+    if key == "sample_id":
+        values = [str(sample_id) for sample_id in sample_ids]
+    elif key in metadata:
+        raw = metadata[key]
+        none_indices = [i for i, v in enumerate(raw) if v is None]
+        if none_indices:
+            raise ValueError(
+                f"--group-column {group_column!r}: {len(none_indices)} sample(s) have a "
+                f"None value in '{key}' (first at index {none_indices[0]}). "
+                "Ensure every sample has a non-null value for this column."
+            )
+        values = [str(v) for v in raw]
+    else:
+        supported = ", ".join(sorted(aliases))
+        raise ValueError(
+            f"Unknown --group-column {group_column!r}. Supported values: {supported}"
+        )
+
+    return np.asarray(values, dtype=object)
+
+
+def _build_hybrid_splits(
+    X: np.ndarray,
+    y: np.ndarray,
+    outer_folds: int,
+    seed: int,
+    group_values: np.ndarray,
+) -> List[Tuple[np.ndarray, np.ndarray]]:
+    """GroupKFold on malware families + KFold on benign samples.
+
+    Avoids the degenerate-fold problem that arises when a single-class group
+    (e.g. the all-benign 'normal' family) is isolated into one test fold by
+    pure GroupKFold.
+    """
+    malware_idx = np.where(y == 1)[0]
+    benign_idx = np.where(y == 0)[0]
+    malware_groups = group_values[malware_idx]
+    n_mal_families = len(np.unique(malware_groups))
+    if n_mal_families < outer_folds:
+        raise ValueError(
+            f"Hybrid split requires at least {outer_folds} malware families in the "
+            f"group column; got {n_mal_families}. Reduce --outer-folds."
+        )
+    mal_splitter = GroupKFold(n_splits=outer_folds)
+    ben_splitter = KFold(n_splits=outer_folds, shuffle=True, random_state=seed)
+    malware_folds = list(
+        mal_splitter.split(X[malware_idx], y[malware_idx], groups=malware_groups)
+    )
+    benign_folds = list(ben_splitter.split(benign_idx))
+    splits = []
+    for (m_train_local, m_test_local), (b_train_local, b_test_local) in zip(
+        malware_folds, benign_folds
+    ):
+        train_idx = np.concatenate(
+            [malware_idx[m_train_local], benign_idx[b_train_local]]
+        )
+        test_idx = np.concatenate(
+            [malware_idx[m_test_local], benign_idx[b_test_local]]
+        )
+        splits.append((train_idx, test_idx))
+    return splits
+
+
+def build_outer_splits(
+    X: np.ndarray,
+    y: np.ndarray,
+    outer_folds: int,
+    seed: int,
+    group_values: Optional[np.ndarray],
+) -> List[Tuple[np.ndarray, np.ndarray]]:
+    if group_values is None:
+        splitter = StratifiedKFold(
+            n_splits=outer_folds,
+            shuffle=True,
+            random_state=seed,
+        )
+        splits = list(splitter.split(X, y))
+        # StratifiedKFold normally guarantees class balance; check defensively for
+        # very small datasets where the minority class count < outer_folds.
+        for fold_index, (train_idx, test_idx) in enumerate(splits, start=1):
+            train_classes = set(np.unique(y[train_idx]).tolist())
+            test_classes = set(np.unique(y[test_idx]).tolist())
+            if train_classes != {0, 1} or test_classes != {0, 1}:
+                raise ValueError(
+                    f"StratifiedKFold fold {fold_index} is class-degenerate: "
+                    f"train_classes={sorted(train_classes)}, "
+                    f"test_classes={sorted(test_classes)}. "
+                    "Reduce --outer-folds or increase the size of the minority class."
+                )
+        return splits
+
+    unique_groups = len(np.unique(group_values))
+    if unique_groups < outer_folds:
+        raise ValueError(
+            f"group split requires at least {outer_folds} groups; got {unique_groups}"
+        )
+    splitter = GroupKFold(n_splits=outer_folds)
+    splits = list(splitter.split(X, y, groups=group_values))
+    degenerate = any(
+        set(np.unique(y[train_idx])) != {0, 1} or set(np.unique(y[test_idx])) != {0, 1}
+        for train_idx, test_idx in splits
+    )
+    if degenerate:
+        print(
+            "GroupKFold produced class-degenerate folds (a single-class group was "
+            "isolated into a test fold). Falling back to hybrid split: "
+            "GroupKFold on malware families + KFold on benign samples.",
+            flush=True,
+        )
+        splits = _build_hybrid_splits(X, y, outer_folds, seed, group_values)
+    return splits
 
 
 def build_event_indices(
@@ -730,6 +879,15 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument("--max-depth", type=int, default=4)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
+        "--group-column",
+        default=None,
+        help=(
+            "Optional outer-CV grouping column. Supported aliases: "
+            "family_gene/family, full_label, goal/category, Filename/sample_id. "
+            "When set, outer CV uses GroupKFold and rejects class-degenerate folds."
+        ),
+    )
+    parser.add_argument(
         "--output-dir",
         default="data/processed/results/detection_aware_beam_oracle",
     )
@@ -770,11 +928,12 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         flush=True,
     )
 
-    X, y, sample_ids, event_names, feature_names = load_and_aggregate(
+    X, y, sample_ids, event_names, feature_names, metadata = load_and_aggregate(
         radar_root=args.radar_root,
         csv_name=args.csv_name,
         sample_limit=args.sample_limit,
         chunksize=args.chunksize,
+        collect_metadata=(args.group_column is not None),
     )
     if len(np.unique(y)) != 2:
         raise ValueError("Dataset must contain both benign and malware labels")
@@ -785,6 +944,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             f"Smallest class has {minimum_class} samples; need at least {required}"
         )
     event_indices = build_event_indices(event_names, feature_names)
+    group_values = resolve_group_values(args.group_column, sample_ids, metadata)
 
     print(
         f"Aggregated matrix: {X.shape}; malware={int(y.sum())}; "
@@ -799,14 +959,25 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         flush=True,
     )
 
-    splitter = StratifiedKFold(
-        n_splits=args.outer_folds,
-        shuffle=True,
-        random_state=args.seed,
+    outer_splits = build_outer_splits(
+        X=X,
+        y=y,
+        outer_folds=args.outer_folds,
+        seed=args.seed,
+        group_values=group_values,
     )
+    if group_values is None:
+        print("Outer split: StratifiedKFold over samples", flush=True)
+    else:
+        print(
+            f"Outer split: GroupKFold over {args.group_column} "
+            f"({len(np.unique(group_values))} unique groups)",
+            flush=True,
+        )
+
     summaries = []
     start = time.time()
-    for fold_index, (train_idx, test_idx) in enumerate(splitter.split(X, y)):
+    for fold_index, (train_idx, test_idx) in enumerate(outer_splits):
         summaries.append(
             evaluate_outer_fold(
                 fold_index=fold_index,
@@ -823,7 +994,6 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         )
         aggregate_summaries(summaries, output_dir, args)
 
-    aggregate_summaries(summaries, output_dir, args)
     print(
         f"\nCompleted {len(summaries)} folds in {(time.time() - start) / 3600:.2f} hours.",
         flush=True,
