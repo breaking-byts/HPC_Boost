@@ -24,10 +24,16 @@ each test sample to a retained candidate that predicts it correctly if one
 exists.
 
 The result is strong evidence that binary-conditional event choice is worth
-pursuing. Across 3,470 RaDaR samples, Candidate-Oracle achieved 0.9781 mean F1,
-compared with 0.9090 for fold-local 2SMaRT and 0.9134 for the best global
-beam-search subset. It recovered 436 of the 565 2SMaRT errors and reduced total
-classification errors by 77.2%. However, this is a theoretical ceiling, not a
+pursuing. Under sample-stratified five-fold CV across 3,470 RaDaR samples,
+Candidate-Oracle achieved 0.9781 mean F1, compared with 0.9090 for fold-local
+2SMaRT and 0.9134 for the best global beam-search subset, recovering 436 of the
+565 2SMaRT errors (a 77.2% error reduction). We then re-ran the full pipeline
+with family-disjoint GroupKFold splits, which we treat as the primary
+publication-grade evaluation. Under fair splits the supervised baselines fall by
+roughly 3.5 F1 points (2SMaRT to 0.8732, Global-Beam to 0.8820) while the oracle
+is essentially unchanged (0.9770), so the oracle's gap over 2SMaRT widens from
+6.9 to 10.4 F1 points; on the hardest unseen family it widens to 16.8 points
+(2SMaRT 0.80 versus oracle 0.97). However, this is a theoretical ceiling, not a
 deployable detector. It validates the existence of conditional headroom; it does
 not yet prove that a static-binary recommender can learn to realize that
 headroom. A capped-pool analysis shows that a top-25 candidate oracle achieves
@@ -220,7 +226,60 @@ XGBoost's histogram tree method.
 
 ## 5. Main Results
 
-### 5.1 Aggregate Metrics
+### 5.1 Primary Result: Family-Disjoint GroupKFold (Publication-Grade)
+
+The aggregate numbers were first computed under sample-stratified five-fold CV.
+Because RaDaR contains many same-family malware samples, stratified splits can
+place near-duplicate family members in both the train and test folds and inflate
+the supervised baselines. We therefore re-ran the full pipeline with
+family-disjoint GroupKFold splits (grouping by `family_gene`, five outer folds,
+three inner folds). This grouped run is the primary, publication-grade result;
+the stratified run in 5.2 is retained only as a secondary comparison that
+isolates the effect of the split protocol.
+
+| Strategy | F1 Mean | F1 Std | Precision | Recall | Accuracy | FPR |
+|---|---:|---:|---:|---:|---:|---:|
+| 2SMaRT | 0.8732 | 0.0515 | 0.8267 | 0.9306 | 0.7852 | 0.8413 |
+| Global-Beam | 0.8820 | 0.0423 | 0.8383 | 0.9360 | 0.8002 | 0.7748 |
+| Candidate-Oracle | 0.9770 | 0.0126 | 0.9563 | 0.9989 | 0.9628 | 0.1862 |
+
+Three things change under fair evaluation, and all of them strengthen the
+thesis:
+
+1. The supervised baselines fall by roughly 3.5 F1 points (2SMaRT 0.9090 to
+   0.8732; Global-Beam 0.9134 to 0.8820), confirming that the stratified numbers
+   were inflated by family leakage.
+2. The oracle is essentially unchanged (0.9781 to 0.9770, a 0.1-point drop),
+   confirming that the conditional-selection headroom is not a leakage artifact.
+3. The oracle's advantage over 2SMaRT therefore widens from 6.9 to 10.4 F1
+   points (0.9770 - 0.8732 = 0.1038).
+
+The most persuasive evidence is the hardest held-out family. GroupKFold over
+`family_gene` produces three folds that each hold out one large unseen family
+and two folds that hold out clusters of smaller families:
+
+| Fold | Held-out test families | 2SMaRT F1 | Global-Beam F1 | Candidate-Oracle F1 |
+|---:|---:|---:|---:|---:|
+| 1 | 1 family | 0.9165 | 0.9212 | 0.9935 |
+| 2 | 1 family | 0.9311 | 0.9283 | 0.9848 |
+| 3 | 1 family | 0.8035 | 0.8280 | 0.9714 |
+| 4 | 8 families | 0.8546 | 0.8724 | 0.9608 |
+| 5 | 7 families | 0.8605 | 0.8601 | 0.9744 |
+
+On fold 3 the global selectors collapse on an unseen family (2SMaRT 0.80,
+Global-Beam 0.83) while the oracle holds at 0.97 - a 16.8-point gap. This is the
+clearest demonstration that one global four-event set generalizes poorly to a
+novel family, while a conditional router able to pick a family-appropriate subset
+does not. This unseen-family behavior is the strongest single piece of evidence
+for the recommender thesis.
+
+### 5.2 Sample-Stratified Aggregate Metrics (Secondary)
+
+The table below and the detailed analyses in 5.3-5.6 come from the original
+sample-stratified run. They remain useful for understanding the oracle's internal
+behavior (confusion structure, capped-pool sensitivity, candidate flatness), but
+the headline F1 values here are leakage-inflated and should not be quoted as the
+primary result; use 5.1 instead.
 
 | Strategy | F1 Mean | F1 Std | Precision | Recall | Accuracy | AUCPR |
 |---|---:|---:|---:|---:|---:|---:|
@@ -250,7 +309,7 @@ This pattern is exactly what HPC-Boost needs to justify the recommender:
 better global search gives only a small gain, while conditional routing gives a
 large gain.
 
-### 5.2 Pooled Confusion Counts
+### 5.3 Pooled Confusion Counts (Stratified Run)
 
 Across all 3,470 samples:
 
@@ -296,7 +355,7 @@ Relative to Global-Beam, Candidate-Oracle recovered 405 of 534 errors:
 \frac{405}{534} = 75.8\% \text{ error reduction}.
 \]
 
-### 5.3 Capped-Pool Oracle Analysis
+### 5.4 Capped-Pool Oracle Analysis (Stratified Run)
 
 The full Candidate-Oracle can select among roughly 1,200 retained candidates per
 fold. This makes it an intentionally optimistic ceiling. To understand how much
@@ -331,7 +390,7 @@ not that these are necessarily random low-performing models, but that a
 label-assisted router over a large pool will overestimate deployable
 performance.
 
-### 5.4 AUCPR Plateau
+### 5.5 AUCPR Plateau (Stratified Run)
 
 A deeper audit of the candidate files shows that the retained candidate pools
 are extremely flat under the training objective:
@@ -351,7 +410,7 @@ differentiated than fold-level inner AUCPR. If per-binary utility is also flat,
 the recommender should be trained to predict an FPR-safe candidate class or
 utility band rather than a precise top subset.
 
-### 5.5 Per-Fold Stability
+### 5.6 Per-Fold Stability (Stratified Run)
 
 Candidate-Oracle beat 2SMaRT on every fold:
 
@@ -527,15 +586,18 @@ runs of the same binary require different event subsets due to input,
 scheduling, or phase behavior, then one static top-4 label per binary may be
 unstable. The new data collection must measure this.
 
-### It does not rule out trace-level split leakage
+### Trace-level split leakage: now tested with GroupKFold
 
-The current oracle uses stratified random folds over RaDaR samples. If the
-dataset contains repeated executions of the same benign program, closely related
-malware variants, or family-level near-duplicates that cross train and test
-folds, both the baseline and oracle numbers may be optimistic. The artifact set
-available for this memo contains sample IDs and labels but not enough metadata
-to prove program- or family-disjoint splitting. A reviewer could reasonably ask
-for GroupKFold or leave-family-out evaluation.
+The original run used stratified random folds over RaDaR samples, which can let
+family-level near-duplicates cross the train and test folds. We have since
+addressed this directly with family-disjoint GroupKFold (Section 5.1). The result
+is reassuring rather than damaging: the supervised baselines were indeed
+leakage-inflated and drop by about 3.5 F1 points under grouped splits, but the
+oracle is essentially unchanged, so the conditional-selection headroom is not a
+split artifact - it grows from 6.9 to 10.4 F1 points. A residual caveat remains
+for the eventual custom dataset: `family_gene` grouping prevents family leakage
+but not necessarily repeated-run or collection-session leakage, which the new
+collection must control explicitly by grouping on binary and session as well.
 
 ### It does not show that Global-Beam is meaningfully better than 2SMaRT
 
@@ -565,9 +627,11 @@ large dataset without first validating the target-construction protocol.
 
 The recommended next phase is a pilot with explicit go/no-go criteria.
 
-Before publication, the RaDaR oracle should also be rerun or supplemented with
-group-aware splits if suitable grouping metadata is available. At minimum, the
-paper should explicitly disclose that the present run is sample-stratified.
+The RaDaR oracle has now been rerun with family-disjoint GroupKFold splits
+(Section 5.1), which serve as the primary publication-grade numbers; the
+stratified run is reported only as a secondary split-methodology comparison. The
+custom collection should extend this discipline to grouping by binary and
+collection session, not only by family.
 
 ### 9.1 Unit of Recommendation
 
@@ -762,6 +826,14 @@ Primary local artifacts used:
 - `oracle_results/logs/detection_aware_beam_oracle.log`
 - `hpc_boost_v2/experiments/exp3_detection_aware_oracle/run_beam_oracle.py`
 - `hpc_boost_v2/experiments/exp3_detection_aware_oracle/analyze_pool_size.py`
+
+Family-disjoint GroupKFold run (primary, Section 5.1):
+
+- `oracle_results/data/processed/results/group_kfold_oracle/aggregate_metrics.csv`
+- `oracle_results/data/processed/results/group_kfold_oracle/fold_metrics.csv`
+- `oracle_results/data/processed/results/group_kfold_oracle/summary.json`
+- `oracle_results/data/processed/results/group_kfold_oracle/all_predictions.csv`
+- `hpc_boost_v2/experiments/exp3_detection_aware_oracle/run_group_kfold_oracle.py`
 
 No external web sources were used in this memo. All quantitative claims are
 derived from the local experiment artifacts listed above.
