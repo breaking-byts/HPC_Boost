@@ -331,7 +331,27 @@ not that these are necessarily random low-performing models, but that a
 label-assisted router over a large pool will overestimate deployable
 performance.
 
-### 5.4 Per-Fold Stability
+### 5.4 AUCPR Plateau
+
+A deeper audit of the candidate files shows that the retained candidate pools
+are extremely flat under the training objective:
+
+| Fold | Pool Size | Min Inner AUCPR | Max Inner AUCPR | Spread |
+|---:|---:|---:|---:|---:|
+| 1 | 1,242 | 0.9355 | 0.9505 | 0.0150 |
+| 2 | 1,215 | 0.9352 | 0.9497 | 0.0144 |
+| 3 | 1,213 | 0.9369 | 0.9475 | 0.0106 |
+| 4 | 1,219 | 0.9327 | 0.9468 | 0.0142 |
+| 5 | 1,200 | 0.9340 | 0.9485 | 0.0144 |
+
+This is the hardest issue for the recommender thesis. The oracle can separate
+near-equivalent candidates using the outer-test label; a deployable recommender
+cannot. Therefore, the pilot must test whether per-binary utility is more
+differentiated than fold-level inner AUCPR. If per-binary utility is also flat,
+the recommender should be trained to predict an FPR-safe candidate class or
+utility band rather than a precise top subset.
+
+### 5.5 Per-Fold Stability
 
 Candidate-Oracle beat 2SMaRT on every fold:
 
@@ -477,6 +497,11 @@ conditional selection. Without such a gap, recommender training would be
 unjustified. With this gap, the recommender becomes a meaningful research
 question.
 
+However, the AUCPR plateau means the next phase must be framed as a learnability
+test. The current result justifies asking whether static binary features can
+predict useful conditional choices; it does not yet show that the ranking signal
+is sufficiently differentiated for a recommender.
+
 ## 8. What This Does Not Establish
 
 This experiment should not be oversold. A strong reviewer would object to any
@@ -511,6 +536,13 @@ folds, both the baseline and oracle numbers may be optimistic. The artifact set
 available for this memo contains sample IDs and labels but not enough metadata
 to prove program- or family-disjoint splitting. A reviewer could reasonably ask
 for GroupKFold or leave-family-out evaluation.
+
+### It does not show that Global-Beam is meaningfully better than 2SMaRT
+
+Global-Beam's mean F1 is higher than 2SMaRT's by 0.0043, but the paired
+fold-level difference is not statistically significant at the conventional
+0.05 level. The memo should therefore treat Global-Beam as approximately tied
+with 2SMaRT, not as a clear improvement.
 
 ### It does not prove cross-machine generalization
 
@@ -677,6 +709,13 @@ Oracle is a ceiling. The top-25 capped oracle still shows a meaningful gain
 over 2SMaRT, but the full-pool number should not be used as the expected
 recommender performance.
 
+### Risk 3b: "The candidate pool is too flat for a recommender to learn"
+
+Correct response: this is an open risk. The pilot must measure per-binary
+utility separation and repeated-run stability. If candidate utility remains
+flat at the binary level, the target should be FPR-safe subset classification or
+coarse utility-band prediction rather than exact listwise ranking.
+
 ### Risk 4: "The oracle is mostly fixing benign false positives"
 
 Correct response: that is a valid and important finding. In high-recall malware
@@ -722,6 +761,7 @@ Primary local artifacts used:
 - `oracle_results/data/processed/results/detection_aware_beam_oracle/fold_*/candidates.csv`
 - `oracle_results/logs/detection_aware_beam_oracle.log`
 - `hpc_boost_v2/experiments/exp3_detection_aware_oracle/run_beam_oracle.py`
+- `hpc_boost_v2/experiments/exp3_detection_aware_oracle/analyze_pool_size.py`
 
 No external web sources were used in this memo. All quantitative claims are
 derived from the local experiment artifacts listed above.
