@@ -44,8 +44,42 @@ class RadarDataLoader:
         self.family_column = "family_gene"
         self.full_label_column = "full_label"
 
+        # Non-event (metadata/label) columns to exclude when selecting HPC event
+        # columns by name. The CSV interleaves metadata both before and after the
+        # 55 HPC events, so a positional slice is fragile under column reordering.
+        # Everything not in this set, and not an unnamed-index or *_encoded label
+        # column (see _is_non_event_column), is treated as an HPC event column.
+        self.non_event_columns = frozenset(
+            {
+                self.sample_id_column,
+                self.binary_label_column,
+                self.category_column,
+                self.family_column,
+                self.full_label_column,
+                "label",
+                "method",
+                "keylog",
+                "bkdoor",
+                "infosteal",
+                "rootkits",
+            }
+        )
+
         self._columns: Optional[List[str]] = None
         self._hpc_columns: Optional[List[str]] = None
+
+    def _is_non_event_column(self, column: str) -> bool:
+        """True for index/label/metadata columns that are not HPC events."""
+        text = str(column)
+        if text in self.non_event_columns:
+            return True
+        # pandas names a leading index column "Unnamed: 0" (and similar).
+        if text.startswith("Unnamed"):
+            return True
+        # Encoded label columns (method_encoded, goal_encoded, ...) are metadata.
+        if text.endswith("_encoded"):
+            return True
+        return False
 
     @property
     def columns(self) -> List[str]:
@@ -56,8 +90,17 @@ class RadarDataLoader:
 
     @property
     def hpc_columns(self) -> List[str]:
+        """The 55 HPC event columns, selected by name (not position).
+
+        Robust to column reordering: returns every column that is not a known
+        metadata/label/index column. Preserves CSV column order.
+        """
         if self._hpc_columns is None:
-            self._hpc_columns = self.columns[2:57]
+            self._hpc_columns = [
+                column
+                for column in self.columns
+                if not self._is_non_event_column(column)
+            ]
         return self._hpc_columns
 
     @property
@@ -84,6 +127,12 @@ class RadarDataLoader:
         missing = [col for col in self.required_columns if col not in self.columns]
         if missing:
             raise ValueError(f"Missing required columns: {missing}")
+
+        if not self.hpc_columns:
+            raise ValueError(
+                "No HPC event columns found after excluding metadata columns. "
+                f"Columns present: {self.columns}"
+            )
 
         return {
             "csv_file": self.csv_file,

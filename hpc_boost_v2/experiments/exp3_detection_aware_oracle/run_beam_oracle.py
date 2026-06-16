@@ -32,7 +32,9 @@ from scipy.stats import kurtosis, skew
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
+    balanced_accuracy_score,
     f1_score,
+    matthews_corrcoef,
     precision_score,
     recall_score,
 )
@@ -44,6 +46,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.detection.metrics import tpr_at_fpr
 from src.utils.data_loader import RadarDataLoader
 
 
@@ -187,7 +190,6 @@ def load_and_aggregate(
     csv_name: str,
     sample_limit: Optional[int],
     chunksize: int,
-    collect_metadata: bool = True,
 ) -> Tuple[
     np.ndarray,
     np.ndarray,
@@ -208,16 +210,17 @@ def load_and_aggregate(
 
     rows: List[Dict[str, float]] = []
     labels: List[int] = []
+    # Per-sample metadata is ALWAYS collected: the per-group oracle decomposition
+    # needs category/family/full_label for test samples regardless of --group-column.
     metadata: Dict[str, List[str]] = {"category": [], "family": [], "full_label": []}
     event_names = list(loader.hpc_columns)
     for idx, sample_id in enumerate(sample_ids, start=1):
         trace = traces[sample_id]
         rows.append(aggregate_trace(trace.events))
         labels.append(trace.binary_label)
-        if collect_metadata:
-            metadata["category"].append(trace.category)
-            metadata["family"].append(trace.family)
-            metadata["full_label"].append(trace.full_label)
+        metadata["category"].append(trace.category)
+        metadata["family"].append(trace.family)
+        metadata["full_label"].append(trace.full_label)
         if idx % 250 == 0 or idx == len(sample_ids):
             print(f"  aggregated {idx}/{len(sample_ids)}", flush=True)
 
@@ -281,7 +284,7 @@ def resolve_group_values(
 def _build_hybrid_splits(
     X: np.ndarray,
     y: np.ndarray,
-    outer_folds: int,
+    n_splits: int,
     seed: int,
     group_values: np.ndarray,
 ) -> List[Tuple[np.ndarray, np.ndarray]]:
@@ -289,19 +292,19 @@ def _build_hybrid_splits(
 
     Avoids the degenerate-fold problem that arises when a single-class group
     (e.g. the all-benign 'normal' family) is isolated into one test fold by
-    pure GroupKFold.
+    pure GroupKFold. Shared by both the outer split and the grouped inner CV.
     """
     malware_idx = np.where(y == 1)[0]
     benign_idx = np.where(y == 0)[0]
     malware_groups = group_values[malware_idx]
     n_mal_families = len(np.unique(malware_groups))
-    if n_mal_families < outer_folds:
+    if n_mal_families < n_splits:
         raise ValueError(
-            f"Hybrid split requires at least {outer_folds} malware families in the "
-            f"group column; got {n_mal_families}. Reduce --outer-folds."
+            f"Hybrid split requires at least {n_splits} malware families in the "
+            f"group column; got {n_mal_families}. Reduce the fold count."
         )
-    mal_splitter = GroupKFold(n_splits=outer_folds)
-    ben_splitter = KFold(n_splits=outer_folds, shuffle=True, random_state=seed)
+    mal_splitter = GroupKFold(n_splits=n_splits)
+    ben_splitter = KFold(n_splits=n_splits, shuffle=True, random_state=seed)
     malware_folds = list(
         mal_splitter.split(X[malware_idx], y[malware_idx], groups=malware_groups)
     )
@@ -310,6 +313,13 @@ def _build_hybrid_splits(
     for (m_train_local, m_test_local), (b_train_local, b_test_local) in zip(
         malware_folds, benign_folds
     ):
+        # Family-disjointness guard: a malware family must never appear in both
+        # the train and test side of the same fold.
+        train_fams = set(malware_groups[m_train_local].tolist())
+        test_fams = set(malware_groups[m_test_local].tolist())
+        leak = train_fams & test_fams
+        if leak:
+            raise AssertionError(f"Malware family leak across hybrid fold: {sorted(leak)}")
         train_idx = np.concatenate(
             [malware_idx[m_train_local], benign_idx[b_train_local]]
         )
@@ -317,6 +327,43 @@ def _build_hybrid_splits(
             [malware_idx[m_test_local], benign_idx[b_test_local]]
         )
         splits.append((train_idx, test_idx))
+    return splits
+
+
+def build_grouped_splits(
+    X: np.ndarray,
+    y: np.ndarray,
+    n_splits: int,
+    seed: int,
+    group_values: np.ndarray,
+    context: str = "split",
+) -> List[Tuple[np.ndarray, np.ndarray]]:
+    """Group-disjoint CV splits with a hybrid fallback for class degeneracy.
+
+    Uses pure GroupKFold; if any fold becomes single-class (a single-class group
+    isolated into a test fold), falls back to the hybrid split (GroupKFold on
+    malware families + KFold on benign). Shared by outer and inner CV so the two
+    levels stay consistent.
+    """
+    unique_groups = len(np.unique(group_values))
+    if unique_groups < n_splits:
+        raise ValueError(
+            f"group split requires at least {n_splits} groups; got {unique_groups}"
+        )
+    splitter = GroupKFold(n_splits=n_splits)
+    splits = list(splitter.split(X, y, groups=group_values))
+    degenerate = any(
+        set(np.unique(y[train_idx])) != {0, 1} or set(np.unique(y[test_idx])) != {0, 1}
+        for train_idx, test_idx in splits
+    )
+    if degenerate:
+        print(
+            f"GroupKFold ({context}) produced class-degenerate folds (a single-class "
+            "group was isolated into a test fold). Falling back to hybrid split: "
+            "GroupKFold on malware families + KFold on benign samples.",
+            flush=True,
+        )
+        splits = _build_hybrid_splits(X, y, n_splits, seed, group_values)
     return splits
 
 
@@ -348,26 +395,47 @@ def build_outer_splits(
                 )
         return splits
 
-    unique_groups = len(np.unique(group_values))
-    if unique_groups < outer_folds:
-        raise ValueError(
-            f"group split requires at least {outer_folds} groups; got {unique_groups}"
-        )
-    splitter = GroupKFold(n_splits=outer_folds)
-    splits = list(splitter.split(X, y, groups=group_values))
-    degenerate = any(
-        set(np.unique(y[train_idx])) != {0, 1} or set(np.unique(y[test_idx])) != {0, 1}
-        for train_idx, test_idx in splits
+    return build_grouped_splits(
+        X=X,
+        y=y,
+        n_splits=outer_folds,
+        seed=seed,
+        group_values=group_values,
+        context="outer",
     )
-    if degenerate:
-        print(
-            "GroupKFold produced class-degenerate folds (a single-class group was "
-            "isolated into a test fold). Falling back to hybrid split: "
-            "GroupKFold on malware families + KFold on benign samples.",
-            flush=True,
+
+
+def build_inner_splits(
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    inner_folds: int,
+    seed: int,
+    inner_split: str,
+    train_group_values: Optional[np.ndarray],
+) -> List[Tuple[np.ndarray, np.ndarray]]:
+    """Inner-CV splits over the OUTER-TRAIN samples.
+
+    When ``inner_split == "group"`` the folds are group-disjoint (with the same
+    hybrid fallback as the outer split) so candidate selection / Global-Beam
+    never sees a family leak. Otherwise StratifiedKFold over samples.
+    """
+    if inner_split == "group":
+        if train_group_values is None:
+            raise ValueError("inner_split='group' requires train_group_values")
+        return build_grouped_splits(
+            X=X_train,
+            y=y_train,
+            n_splits=inner_folds,
+            seed=seed,
+            group_values=train_group_values,
+            context="inner",
         )
-        splits = _build_hybrid_splits(X, y, outer_folds, seed, group_values)
-    return splits
+    splitter = StratifiedKFold(
+        n_splits=inner_folds,
+        shuffle=True,
+        random_state=seed,
+    )
+    return list(splitter.split(X_train, y_train))
 
 
 def build_event_indices(
@@ -484,14 +552,18 @@ def run_beam_search(
     max_depth: int,
     random_state: int,
     n_jobs: int,
+    inner_split: str = "stratified",
+    train_group_values: Optional[np.ndarray] = None,
 ) -> Tuple[List[SubsetScore], List[Dict[str, object]]]:
     validate_search_parameters(beam_width, candidate_cap, inner_folds)
-    splitter = StratifiedKFold(
-        n_splits=inner_folds,
-        shuffle=True,
-        random_state=random_state,
+    inner_splits = build_inner_splits(
+        X_train=X_train,
+        y_train=y_train,
+        inner_folds=inner_folds,
+        seed=random_state,
+        inner_split=inner_split,
+        train_group_values=train_group_values,
     )
-    inner_splits = list(splitter.split(X_train, y_train))
     beam: List[Subset] = [(event,) for event in sorted(event_names)]
     history: List[Dict[str, object]] = []
 
@@ -588,6 +660,136 @@ def fit_all_candidates(
     return predictions, probabilities
 
 
+def threshold_for_target_tpr(
+    y_true: np.ndarray,
+    probabilities: np.ndarray,
+    target_tpr: float,
+) -> float:
+    """Highest decision threshold whose TPR >= target_tpr on (y_true, prob).
+
+    Thresholds are the unique probability values. Choosing the HIGHEST such
+    threshold maximises precision/specificity while still meeting the recall
+    floor. Falls back to 0.5 when no positive examples are present.
+    """
+    y_true = np.asarray(y_true, dtype=int)
+    probabilities = np.asarray(probabilities, dtype=float)
+    positives = probabilities[y_true == 1]
+    if positives.size == 0:
+        return 0.5
+    candidate_thresholds = np.unique(np.concatenate([[0.0], probabilities]))
+    n_pos = positives.size
+    best: Optional[float] = None
+    # Iterate high -> low; first threshold that meets the TPR floor is the highest.
+    for threshold in sorted(candidate_thresholds, reverse=True):
+        tpr = float(np.sum(positives >= threshold) / n_pos)
+        if tpr >= target_tpr:
+            best = float(threshold)
+            break
+    # If even threshold 0.0 cannot reach the target (impossible since all >= 0),
+    # fall back to the lowest threshold.
+    return best if best is not None else 0.0
+
+
+def compute_subset_oof_probabilities(
+    events: Subset,
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    event_indices: Dict[str, np.ndarray],
+    inner_splits: Sequence[Tuple[np.ndarray, np.ndarray]],
+    n_estimators: int,
+    max_depth: int,
+    random_state: int,
+) -> np.ndarray:
+    """Out-of-fold probabilities over the outer-train rows for one subset.
+
+    Uses the SAME inner-CV folds as candidate scoring so thresholds are tuned on
+    train data only and stay consistent with --inner-split.
+    """
+    columns = subset_feature_indices(events, event_indices)
+    oof = np.full(len(y_train), np.nan, dtype=np.float64)
+    for split_idx, (inner_train_idx, inner_valid_idx) in enumerate(inner_splits):
+        scaler = StandardScaler()
+        X_tr = scaler.fit_transform(X_train[inner_train_idx][:, columns])
+        X_va = scaler.transform(X_train[inner_valid_idx][:, columns])
+        model = make_xgb(
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            random_state=random_state + split_idx,
+        )
+        model.fit(X_tr, y_train[inner_train_idx])
+        oof[inner_valid_idx] = model.predict_proba(X_va)[:, 1]
+    return oof
+
+
+def _tuned_threshold_for_subset(
+    events: Subset,
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    event_indices: Dict[str, np.ndarray],
+    inner_splits: Sequence[Tuple[np.ndarray, np.ndarray]],
+    n_estimators: int,
+    max_depth: int,
+    random_state: int,
+    target_tpr: float,
+) -> float:
+    oof = compute_subset_oof_probabilities(
+        events=events,
+        X_train=X_train,
+        y_train=y_train,
+        event_indices=event_indices,
+        inner_splits=inner_splits,
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        random_state=random_state,
+    )
+    covered = ~np.isnan(oof)
+    return threshold_for_target_tpr(y_train[covered], oof[covered], target_tpr)
+
+
+def tune_candidate_thresholds(
+    candidates: Sequence[SubsetScore],
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    event_indices: Dict[str, np.ndarray],
+    inner_folds: int,
+    n_estimators: int,
+    max_depth: int,
+    random_state: int,
+    n_jobs: int,
+    target_tpr: float,
+    inner_split: str,
+    train_group_values: Optional[np.ndarray],
+) -> np.ndarray:
+    """Train-only tuned decision thresholds, one per candidate.
+
+    NEVER touches outer-test data. Builds OOF probabilities over the outer-train
+    via the same split mode as the inner CV (--inner-split).
+    """
+    inner_splits = build_inner_splits(
+        X_train=X_train,
+        y_train=y_train,
+        inner_folds=inner_folds,
+        seed=random_state,
+        inner_split=inner_split,
+        train_group_values=train_group_values,
+    )
+    thresholds = Parallel(n_jobs=n_jobs, backend="loky", verbose=0)(
+        delayed(_tuned_threshold_for_subset)(
+            events=candidate.events,
+            X_train=X_train,
+            y_train=y_train,
+            event_indices=event_indices,
+            inner_splits=inner_splits,
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            random_state=random_state + idx,
+            target_tpr=target_tpr,
+        )
+        for idx, candidate in enumerate(candidates)
+    )
+    return np.asarray(thresholds, dtype=np.float64)
+
+
 def select_twosmart(
     X_train: np.ndarray,
     y_train: np.ndarray,
@@ -615,13 +817,99 @@ def compute_metrics(
     predictions: np.ndarray,
     probabilities: np.ndarray,
 ) -> Dict[str, float]:
+    y_true = np.asarray(y_true, dtype=int)
+    predictions = np.asarray(predictions, dtype=int)
+    probabilities = np.asarray(probabilities, dtype=float)
+
+    tp = int(np.sum((predictions == 1) & (y_true == 1)))
+    fp = int(np.sum((predictions == 1) & (y_true == 0)))
+    tn = int(np.sum((predictions == 0) & (y_true == 0)))
+    fn = int(np.sum((predictions == 0) & (y_true == 1)))
+
+    both_classes = len(np.unique(y_true)) == 2
+    # auprc / balanced_accuracy / mcc / roc-based metrics are undefined for a
+    # single-class group (which happens for per-group oracle decompositions).
+    auprc = float(average_precision_score(y_true, probabilities)) if both_classes else 0.0
+    bal_acc = float(balanced_accuracy_score(y_true, predictions)) if both_classes else 0.0
+    mcc = float(matthews_corrcoef(y_true, predictions)) if both_classes else 0.0
+
     return {
         "f1": float(f1_score(y_true, predictions, zero_division=0)),
         "precision": float(precision_score(y_true, predictions, zero_division=0)),
         "recall": float(recall_score(y_true, predictions, zero_division=0)),
         "accuracy": float(accuracy_score(y_true, predictions)),
-        "auprc": float(average_precision_score(y_true, probabilities)),
+        "auprc": auprc,
+        "fpr": float(fp / (fp + tn)) if (fp + tn) > 0 else 0.0,
+        "balanced_accuracy": bal_acc,
+        "mcc": mcc,
+        "tp": tp,
+        "fp": fp,
+        "tn": tn,
+        "fn": fn,
+        "tpr_at_fpr_0.05": tpr_at_fpr(y_true, probabilities, 0.05),
+        "tpr_at_fpr_0.01": tpr_at_fpr(y_true, probabilities, 0.01),
     }
+
+
+SCALAR_METRIC_KEYS = (
+    "f1",
+    "balanced_accuracy",
+    "fpr",
+    "mcc",
+    "precision",
+    "recall",
+    "accuracy",
+    "auprc",
+)
+
+
+def predictions_at_threshold(
+    probabilities: np.ndarray,
+    thresholds: np.ndarray,
+) -> np.ndarray:
+    """Vectorised candidate-by-sample predictions at per-candidate thresholds."""
+    probabilities = np.asarray(probabilities, dtype=float)
+    thresholds = np.asarray(thresholds, dtype=float).reshape(-1, 1)
+    return (probabilities >= thresholds).astype(np.int32)
+
+
+def route_group_oracle(
+    y_true: np.ndarray,
+    candidate_predictions: np.ndarray,
+    group_labels: np.ndarray,
+) -> np.ndarray:
+    """Per-group oracle: pick ONE candidate per group, maximising group correctness.
+
+    Models a static recommender that may pick at most one subset per group value
+    (e.g. one subset per malware family). For each group, the candidate with the
+    most correct predictions on that group's samples wins and is applied to every
+    sample in the group. Ties break toward the lowest candidate index.
+    Returns the routed prediction vector (one prediction per sample).
+    """
+    y_true = np.asarray(y_true, dtype=int)
+    predictions = np.asarray(candidate_predictions, dtype=int)
+    group_labels = np.asarray(group_labels, dtype=object)
+
+    routed = predictions[0].copy()
+    correct = (predictions == y_true[np.newaxis, :]).astype(np.int64)
+    for group in np.unique(group_labels):
+        mask = group_labels == group
+        per_candidate_correct = correct[:, mask].sum(axis=1)
+        chosen = int(np.argmax(per_candidate_correct))  # ties -> lowest index
+        routed[mask] = predictions[chosen][mask]
+    return routed.astype(np.int32)
+
+
+def route_global_oracle(
+    y_true: np.ndarray,
+    candidate_predictions: np.ndarray,
+) -> np.ndarray:
+    """Global (collapsed) oracle: single best candidate over ALL test samples."""
+    y_true = np.asarray(y_true, dtype=int)
+    predictions = np.asarray(candidate_predictions, dtype=int)
+    correct = (predictions == y_true[np.newaxis, :]).sum(axis=1)
+    chosen = int(np.argmax(correct))  # ties -> lowest index
+    return predictions[chosen].astype(np.int32)
 
 
 def atomic_write_json(path: Path, payload: object) -> None:
@@ -639,6 +927,68 @@ def atomic_write_csv(path: Path, frame: pd.DataFrame) -> None:
     temporary.replace(path)
 
 
+GROUP_ORACLE_GRANULARITIES = (
+    "global",
+    "per_category",
+    "per_family",
+    "per_full_label",
+    "per_sample",
+)
+
+
+def compute_group_oracle_metrics(
+    y_test: np.ndarray,
+    candidate_predictions: np.ndarray,
+    candidate_probabilities: np.ndarray,
+    candidate_scores: np.ndarray,
+    global_index: int,
+    test_metadata: Dict[str, List[str]],
+    operating_point: str,
+) -> List[Dict[str, object]]:
+    """Per-group oracle decomposition at one operating point.
+
+    For each granularity the oracle is restricted to picking ONE candidate per
+    group value (except per_sample, the existing per-sample router). The gap
+    between per_sample and per_family/per_full_label is headroom UNREACHABLE by
+    a static family/binary recommender; the gap between per_family and global is
+    the REACHABLE headroom.
+    """
+    group_sources = {
+        "per_category": np.asarray(test_metadata["category"], dtype=object),
+        "per_family": np.asarray(test_metadata["family"], dtype=object),
+        "per_full_label": np.asarray(test_metadata["full_label"], dtype=object),
+    }
+    rows: List[Dict[str, object]] = []
+    for granularity in GROUP_ORACLE_GRANULARITIES:
+        if granularity == "global":
+            routed = route_global_oracle(y_test, candidate_predictions)
+        elif granularity == "per_sample":
+            routed = route_candidate_oracle(
+                y_true=y_test,
+                candidate_predictions=candidate_predictions,
+                candidate_probabilities=candidate_probabilities,
+                candidate_scores=candidate_scores,
+                global_candidate_index=global_index,
+            ).predictions
+        else:
+            routed = route_group_oracle(
+                y_test, candidate_predictions, group_sources[granularity]
+            )
+        # Probabilities are only used for auprc/roc; the global candidate's
+        # probabilities are a stable reference across granularities.
+        metrics = compute_metrics(
+            y_test, routed, candidate_probabilities[global_index]
+        )
+        rows.append(
+            {
+                "granularity": granularity,
+                "operating_point": operating_point,
+                **metrics,
+            }
+        )
+    return rows
+
+
 def evaluate_outer_fold(
     fold_index: int,
     train_idx: np.ndarray,
@@ -650,6 +1000,8 @@ def evaluate_outer_fold(
     event_indices: Dict[str, np.ndarray],
     args: argparse.Namespace,
     output_dir: Path,
+    group_values: Optional[np.ndarray],
+    metadata: Dict[str, List[str]],
 ) -> Dict[str, object]:
     fold_number = fold_index + 1
     fold_dir = output_dir / f"fold_{fold_number}"
@@ -661,9 +1013,15 @@ def evaluate_outer_fold(
     fold_dir.mkdir(parents=True, exist_ok=True)
     X_train, X_test = X[train_idx], X[test_idx]
     y_train, y_test = y[train_idx], y[test_idx]
+    inner_split = args.inner_split
+    train_group_values = (
+        group_values[train_idx] if (group_values is not None and inner_split == "group")
+        else None
+    )
+    test_metadata = {key: [values[i] for i in test_idx] for key, values in metadata.items()}
     print(
         f"[Fold {fold_number}/{args.outer_folds}] train={len(train_idx)} "
-        f"test={len(test_idx)}",
+        f"test={len(test_idx)} inner_split={inner_split}",
         flush=True,
     )
     fold_start = time.time()
@@ -680,6 +1038,8 @@ def evaluate_outer_fold(
         max_depth=args.max_depth,
         random_state=args.seed + fold_index * 1000,
         n_jobs=args.jobs,
+        inner_split=inner_split,
+        train_group_values=train_group_values,
     )
     candidate_frame = pd.DataFrame(
         [
@@ -713,14 +1073,40 @@ def evaluate_outer_fold(
     )
     candidate_fit_seconds = time.time() - fit_start
 
+    # Train-only tuned operating point: one threshold per candidate from OOF
+    # probabilities over the outer-train. NEVER uses outer-test labels.
+    print(
+        f"    tuning thresholds (train-only, target TPR={args.target_tpr})...",
+        flush=True,
+    )
+    tuned_thresholds = tune_candidate_thresholds(
+        candidates=candidates,
+        X_train=X_train,
+        y_train=y_train,
+        event_indices=event_indices,
+        inner_folds=args.inner_folds,
+        n_estimators=args.n_estimators,
+        max_depth=args.max_depth,
+        random_state=args.seed + fold_index * 1000,
+        n_jobs=args.jobs,
+        target_tpr=args.target_tpr,
+        inner_split=inner_split,
+        train_group_values=train_group_values,
+    )
+    # candidate-by-sample predictions at the tuned per-candidate thresholds.
+    candidate_predictions_tuned = predictions_at_threshold(
+        candidate_probabilities, tuned_thresholds
+    )
+
     candidate_scores = np.asarray([row.mean_auprc for row in candidates])
     global_index = 0
+
+    # ── Legacy 0.5-threshold operating point (byte-for-byte reproducible) ──
     global_metrics = compute_metrics(
         y_test,
         candidate_predictions[global_index],
         candidate_probabilities[global_index],
     )
-
     routing = route_candidate_oracle(
         y_true=y_test,
         candidate_predictions=candidate_predictions,
@@ -732,6 +1118,25 @@ def evaluate_outer_fold(
         y_test,
         routing.predictions,
         routing.probabilities,
+    )
+
+    # ── Tuned-threshold operating point ──
+    global_metrics_tuned = compute_metrics(
+        y_test,
+        candidate_predictions_tuned[global_index],
+        candidate_probabilities[global_index],
+    )
+    routing_tuned = route_candidate_oracle(
+        y_true=y_test,
+        candidate_predictions=candidate_predictions_tuned,
+        candidate_probabilities=candidate_probabilities,
+        candidate_scores=candidate_scores,
+        global_candidate_index=global_index,
+    )
+    oracle_metrics_tuned = compute_metrics(
+        y_test,
+        routing_tuned.predictions,
+        routing_tuned.probabilities,
     )
 
     twosmart_events = select_twosmart(
@@ -755,10 +1160,81 @@ def evaluate_outer_fold(
         twosmart_predictions,
         twosmart_probabilities,
     )
+    # 2SMaRT tuned threshold: same train-only target-TPR rule on its own OOF.
+    twosmart_threshold = _tuned_threshold_for_subset(
+        events=twosmart_events,
+        X_train=X_train,
+        y_train=y_train,
+        event_indices=event_indices,
+        inner_splits=build_inner_splits(
+            X_train=X_train,
+            y_train=y_train,
+            inner_folds=args.inner_folds,
+            seed=args.seed + fold_index * 1000,
+            inner_split=inner_split,
+            train_group_values=train_group_values,
+        ),
+        n_estimators=args.n_estimators,
+        max_depth=args.max_depth,
+        random_state=args.seed + fold_index,
+        target_tpr=args.target_tpr,
+    )
+    twosmart_predictions_tuned = (
+        twosmart_probabilities >= twosmart_threshold
+    ).astype(np.int32)
+    twosmart_metrics_tuned = compute_metrics(
+        y_test,
+        twosmart_predictions_tuned,
+        twosmart_probabilities,
+    )
+
+    # ── Trivial majority-class baseline (predict training-majority for all) ──
+    majority_class = int(np.bincount(y_train).argmax())
+    majority_predictions = np.full(len(y_test), majority_class, dtype=np.int32)
+    # Constant "probability" equal to the predicted class so auprc is well-defined.
+    majority_probabilities = majority_predictions.astype(np.float32)
+    majority_metrics = compute_metrics(
+        y_test, majority_predictions, majority_probabilities
+    )
+
+    # ── Per-group oracle decomposition (the decisive experiment) ──
+    group_oracle_rows: List[Dict[str, object]] = []
+    group_oracle_rows.extend(
+        compute_group_oracle_metrics(
+            y_test=y_test,
+            candidate_predictions=candidate_predictions,
+            candidate_probabilities=candidate_probabilities,
+            candidate_scores=candidate_scores,
+            global_index=global_index,
+            test_metadata=test_metadata,
+            operating_point="0.5",
+        )
+    )
+    group_oracle_rows.extend(
+        compute_group_oracle_metrics(
+            y_test=y_test,
+            candidate_predictions=candidate_predictions_tuned,
+            candidate_probabilities=candidate_probabilities,
+            candidate_scores=candidate_scores,
+            global_index=global_index,
+            test_metadata=test_metadata,
+            operating_point="tuned",
+        )
+    )
+    for row in group_oracle_rows:
+        row["fold"] = fold_number
+    atomic_write_json(
+        fold_dir / "group_oracle_metrics.json",
+        {"fold": fold_number, "target_tpr": args.target_tpr, "rows": group_oracle_rows},
+    )
 
     routed_events = [
         "|".join(candidates[idx].events) for idx in routing.candidate_indices
     ]
+    routed_events_tuned = [
+        "|".join(candidates[idx].events) for idx in routing_tuned.candidate_indices
+    ]
+    # Legacy columns are kept verbatim; tuned columns are appended.
     prediction_frame = pd.DataFrame(
         {
             "sample_id": [sample_ids[idx] for idx in test_idx],
@@ -772,6 +1248,12 @@ def evaluate_outer_fold(
             "oracle_candidate_index": routing.candidate_indices,
             "oracle_events": routed_events,
             "correct_candidate_count": routing.correct_candidate_counts,
+            "global_beam_pred_tuned": candidate_predictions_tuned[global_index],
+            "twosmart_pred_tuned": twosmart_predictions_tuned,
+            "oracle_pred_tuned": routing_tuned.predictions,
+            "oracle_candidate_index_tuned": routing_tuned.candidate_indices,
+            "oracle_events_tuned": routed_events_tuned,
+            "majority_pred": majority_predictions,
         }
     )
     atomic_write_csv(fold_dir / "predictions.csv", prediction_frame)
@@ -785,11 +1267,21 @@ def evaluate_outer_fold(
         "global_beam_inner_auprc": candidates[global_index].mean_auprc,
         "twosmart_events": list(twosmart_events),
         "oracle_coverage": routing.coverage,
+        "oracle_coverage_tuned": routing_tuned.coverage,
+        "target_tpr": args.target_tpr,
+        "global_beam_tuned_threshold": float(tuned_thresholds[global_index]),
+        "twosmart_tuned_threshold": float(twosmart_threshold),
+        "majority_class": majority_class,
         "metrics": {
             "Global-Beam": global_metrics,
             "Candidate-Oracle": oracle_metrics,
             "2SMaRT": twosmart_metrics,
+            "Majority-Baseline": majority_metrics,
+            "Global-Beam_tuned": global_metrics_tuned,
+            "Candidate-Oracle_tuned": oracle_metrics_tuned,
+            "2SMaRT_tuned": twosmart_metrics_tuned,
         },
+        "group_oracle_metrics": group_oracle_rows,
         "search_history": search_history,
         "candidate_fit_seconds": candidate_fit_seconds,
         "total_fold_seconds": time.time() - fold_start,
@@ -802,7 +1294,14 @@ def evaluate_outer_fold(
         f"coverage={routing.coverage:.4f}",
         flush=True,
     )
-    del candidate_predictions, candidate_probabilities
+    print(
+        f"    F1[tuned]: Oracle={oracle_metrics_tuned['f1']:.4f} "
+        f"Global-Beam={global_metrics_tuned['f1']:.4f} "
+        f"2SMaRT={twosmart_metrics_tuned['f1']:.4f} "
+        f"Majority={majority_metrics['f1']:.4f}",
+        flush=True,
+    )
+    del candidate_predictions, candidate_probabilities, candidate_predictions_tuned
     gc.collect()
     return summary
 
@@ -823,6 +1322,8 @@ def aggregate_summaries(
                     "oracle_coverage": (
                         summary["oracle_coverage"]
                         if strategy == "Candidate-Oracle"
+                        else summary.get("oracle_coverage_tuned", np.nan)
+                        if strategy == "Candidate-Oracle_tuned"
                         else np.nan
                     ),
                 }
@@ -831,13 +1332,33 @@ def aggregate_summaries(
     atomic_write_csv(output_dir / "fold_metrics.csv", fold_metrics)
 
     grouped = (
-        fold_metrics.groupby("strategy")[["f1", "precision", "recall", "accuracy", "auprc"]]
+        fold_metrics.groupby("strategy")[list(SCALAR_METRIC_KEYS)]
         .agg(["mean", "std"])
         .round(6)
     )
     grouped.columns = [f"{metric}_{stat}" for metric, stat in grouped.columns]
     aggregate = grouped.reset_index()
     atomic_write_csv(output_dir / "aggregate_metrics.csv", aggregate)
+
+    # ── Per-group oracle decomposition aggregate (the decisive experiment) ──
+    group_rows: List[Dict[str, object]] = []
+    for summary in summaries:
+        for row in summary.get("group_oracle_metrics", []):
+            group_rows.append(dict(row))
+    if group_rows:
+        group_frame = pd.DataFrame(group_rows)
+        group_grouped = (
+            group_frame.groupby(["granularity", "operating_point"])[list(SCALAR_METRIC_KEYS)]
+            .agg(["mean", "std"])
+            .round(6)
+        )
+        group_grouped.columns = [
+            f"{metric}_{stat}" for metric, stat in group_grouped.columns
+        ]
+        group_aggregate = group_grouped.reset_index()
+        atomic_write_csv(output_dir / "group_oracle_aggregate.csv", group_aggregate)
+    else:
+        group_aggregate = pd.DataFrame()
 
     payload = {
         "config": {
@@ -847,6 +1368,7 @@ def aggregate_summaries(
         },
         "folds": list(summaries),
         "aggregate": aggregate.to_dict(orient="records"),
+        "group_oracle_aggregate": group_aggregate.to_dict(orient="records"),
         "methodology": {
             "candidate_generation": "outer-training data only",
             "search_objective": "mean inner-CV AUCPR",
@@ -854,6 +1376,15 @@ def aggregate_summaries(
             "candidate_oracle": (
                 "post-hoc label-assisted routing among retained candidates; "
                 "explicitly non-deployable"
+            ),
+            "tuned_operating_point": (
+                "per-candidate threshold from train-OOF probabilities at "
+                f"target TPR={args.target_tpr}; outer-test labels never used to set it"
+            ),
+            "group_oracle": (
+                "static-recommender ceiling per grouping granularity; "
+                "per_sample-vs-per_family gap is unreachable headroom, "
+                "per_family-vs-global gap is reachable headroom"
             ),
         },
     }
@@ -888,11 +1419,38 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--inner-split",
+        choices=("stratified", "group"),
+        default=None,
+        help=(
+            "Inner-CV split for candidate scoring and threshold tuning. "
+            "Defaults to 'group' when --group-column is set (so candidate "
+            "selection is also family-disjoint), else 'stratified'."
+        ),
+    )
+    parser.add_argument(
+        "--target-tpr",
+        type=float,
+        default=0.95,
+        help=(
+            "Target true-positive rate for the train-only tuned operating point. "
+            "The highest threshold meeting train-OOF TPR>=target is chosen."
+        ),
+    )
+    parser.add_argument(
         "--output-dir",
         default="data/processed/results/detection_aware_beam_oracle",
     )
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args(argv)
+
+    # Default the inner split mode to match the outer split: group-disjoint inner
+    # CV whenever the outer CV is grouped, so family leakage cannot re-enter via
+    # candidate selection / threshold tuning.
+    if args.inner_split is None:
+        args.inner_split = "group" if args.group_column is not None else "stratified"
+    if args.inner_split == "group" and args.group_column is None:
+        parser.error("--inner-split group requires --group-column to be set")
 
     validate_search_parameters(
         beam_width=args.beam_width,
@@ -909,6 +1467,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         parser.error("--chunksize must be positive")
     if args.n_estimators <= 0 or args.max_depth <= 0:
         parser.error("XGBoost parameters must be positive")
+    if not 0.0 < args.target_tpr <= 1.0:
+        parser.error("--target-tpr must be in (0, 1]")
     return args
 
 
@@ -933,7 +1493,6 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         csv_name=args.csv_name,
         sample_limit=args.sample_limit,
         chunksize=args.chunksize,
-        collect_metadata=(args.group_column is not None),
     )
     if len(np.unique(y)) != 2:
         raise ValueError("Dataset must contain both benign and malware labels")
@@ -990,6 +1549,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                 event_indices=event_indices,
                 args=args,
                 output_dir=output_dir,
+                group_values=group_values,
+                metadata=metadata,
             )
         )
         aggregate_summaries(summaries, output_dir, args)
