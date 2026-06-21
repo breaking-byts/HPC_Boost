@@ -1,0 +1,44 @@
+{
+  "n_binaries": 45,
+  "n_candidates": 715,
+  "outer_folds": 5,
+  "target_tpr": 0.95,
+  "oracle_single_subset_ceiling_balacc": 0.9773,
+  "consistency_fixed_aucpr": {
+    "modal_subset": [
+      "L1-dcache-loads",
+      "branch-misses",
+      "cache-misses",
+      "cycles"
+    ],
+    "modal_folds": 1,
+    "n_folds": 5,
+    "distinct": 5
+  },
+  "consistency_fixed_balacc": {
+    "modal_subset": [
+      "L1-dcache-loads",
+      "L1-dcache-stores",
+      "branch-misses",
+      "cycles"
+    ],
+    "modal_folds": 1,
+    "n_folds": 5,
+    "distinct": 5
+  },
+  "recommended_subset": [
+    "L1-dcache-stores",
+    "branches",
+    "cache-misses",
+    "cycles"
+  ],
+  "recommended_subset_inner_balacc": 0.9818181818181818,
+  "recommended_subset_aucpr_selection": [
+    "L1-dcache-stores",
+    "cache-misses",
+    "cycles",
+    "dTLB-loads"
+  ],
+  "gain_fixed_balacc_vs_2smart_f1": 0.03990929705215418,
+  "gain_fixed_balacc_vs_2smart_balacc": 0.047826086956521685
+}
