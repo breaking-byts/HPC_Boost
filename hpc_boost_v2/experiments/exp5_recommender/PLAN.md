@@ -168,3 +168,41 @@ listwise/utility objective; eval top-1/top-k regret on held-out binaries, §10).
   `papers/hpc-boost-exp5-per-binary-gate.md` (full exp5 story). RESULTS.md updated
   with the recommender table. **Queue B** logged as task #6 (broaden malware →
   re-run gate). exp5 phase complete pending any committing.
+- **2026-06-22** — Pushed exp5 branch to GitHub origin (`breaking-byts/HPC_Boost`).
+  Started **Task B automation**: wrote `scratch/malware_collect/broaden_track1.sh`,
+  an overnight driver that fetches broadened x86-64 autonomous families →
+  triages → collects runners (contained) → rebuilds `labeled_dataset_track1.csv`.
+  Containment is enforced by `orchestrate_malware.py` (restrict=on + per-boot
+  `verify_containment.sh`); fetch never executes samples. **BLOCKED on host
+  reachability:** this Mac is off the campus LAN (`192.168.40.x`), host is
+  campus-LAN-only → cannot launch/test tonight. Script syntax-checked (`bash -n`).
+  Data cannot be ready by morning unless the host is reached and the driver
+  launched. Runbook below (§8).
+
+## 8. Task B runbook — broaden the malware corpus (overnight)
+
+Preconditions: **on the campus LAN**; `MB_API_KEY` exported on the host; clean-base
+snapshot has `restrict=on`. Then, on the host:
+
+```
+cd ~/hpcboost_collect
+# deploy the driver (from repo mirror) if not already there:
+#   cp scratch/malware_collect/broaden_track1.sh scripts/mw/   # (repo->host sync)
+export MB_API_KEY=...
+setsid nohup bash scripts/mw/broaden_track1.sh >logs/broaden.out 2>&1 </dev/null &
+tail -f logs/broaden.log          # progress;  done marker: /tmp/broaden_done
+```
+
+Then locally re-run the gate on the rebuilt dataset:
+```
+scp iiitd@<host-ip>:~/hpcboost_collect/results/labeled_dataset_track1.csv \
+    hpc_boost_v2/experiments/exp5_recommender/data/
+cd hpc_boost_v2 && ./venv/bin/python -m experiments.exp5_recommender.run_per_binary_oracle \
+    --dataset experiments/exp5_recommender/data/labeled_dataset_track1.csv \
+    --out experiments/exp5_recommender/results
+```
+
+Expected reality (detonation wall, see [[malware-collection-host]]): x86-64
+autonomous families beyond Tsunami/Kaiji are scarce, so the yield of *new*
+runners may be small; a low yield is itself an informative confirmation. The
+driver stops early (marker `NORUNNERS`) if triage finds no new runners.
