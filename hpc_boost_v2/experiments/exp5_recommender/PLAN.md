@@ -201,6 +201,18 @@ listwise/utility objective; eval top-1/top-k regret on held-out binaries, §10).
   broadening **is** feasible; the corpus was never actually exhausted. Also added
   `PYTHONUNBUFFERED=1` for real-time child logs. (`sudo update-ca-certificates`
   would be the cleaner permanent host fix; left to the user.)
+- **2026-06-22** — **Task B COMPLETE — definitive result: Track-1 cannot be
+  broadened from MalwareBazaar.** Fetch sifted hundreds of candidates across 9
+  autonomous families; kept only **6 new x86-64** ELFs (discard breakdown:
+  arm 76, mips 117, i386 88, aarch64 14, + non-standard) → an **architecture wall**
+  (these families are overwhelmingly IoT ARM/MIPS). Triage of the 6: **0 detonated**
+  (**detonation wall**). Driver stopped at `NORUNNERS`; no collection;
+  `labeled_dataset_track1.csv` unchanged → **no gate re-run needed, the conditioning
+  NO-GO stands**. To broaden would require either Track-2 emulation (abundant
+  ARM/MIPS bots via host-side proxy HPC — different measurement, would need its own
+  validity story) or a non-MB x86-64 source (VirusShare/VirusTotal traditional
+  Backdoor/Rootkit/Trojan — older, more runnable). Decision deferred to user.
+  exp5 conclusion is robust: **Ship A (fixed-subset recommender + stability) stands.**
 
 ## 8. Task B runbook — broaden the malware corpus (overnight)
 

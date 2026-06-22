@@ -155,10 +155,20 @@ deployable — a stability result that validates the collection methodology, and
 fixed-subset recommender that beats the 2SMaRT baseline by ~5 balanced-accuracy
 points while halving its false-positive rate.
 
-**Future work (queued):** broaden the malware corpus beyond autonomous bots
-(x86-64 autonomous families are scarce — the detonation-wall finding), rebuild
-the dataset, and re-run this exact gate to give per-binary conditioning a fair
-test. Only that would change the NO-GO.
+**Broadening was attempted and quantifies a double wall.** An automated re-fetch
+across nine autonomous families (Mirai, Gafgyt, Bashlite, Tsunami, XorDDoS,
+Dofloo, Ddostf, Hajime, Kaiji) sifted hundreds of MalwareBazaar candidates and
+yielded only **6 new x86-64 ELFs** — the rest were ARM (76), MIPS (117), i386
+(88), or aarch64 (14): an **architecture wall** (these are IoT families). Triage
+of those 6 found **0 that detonated** (the **detonation wall**). So the Track-1
+(x86-64 real-PMU) corpus cannot be meaningfully broadened from MalwareBazaar, and
+the per-binary conditioning NO-GO is robust on the available real-PMU data.
+
+**Future work to give conditioning a fair test would require a different corpus,**
+not more of the same: either Track-2 multi-arch emulation (abundant ARM/MIPS bots
+via host-side proxy HPC — but translated execution, needing its own measurement-
+validity argument), or a non-MalwareBazaar x86-64 source (VirusShare/VirusTotal
+traditional Backdoor/Rootkit/Trojan families — older and more likely to run).
 
 ## Appendix: artifacts
 
