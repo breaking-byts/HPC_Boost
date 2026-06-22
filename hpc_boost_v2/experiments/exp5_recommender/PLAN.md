@@ -190,6 +190,17 @@ listwise/utility objective; eval top-1/top-k regret on held-out binaries, §10).
   Overnight: fetch → triage → collect runners (contained) → rebuild
   `labeled_dataset_track1.csv` → marker `/tmp/broaden_done`. Morning: pull + re-run
   gate/recommender (needs Mac on campus LAN).
+- **2026-06-22** — First run aborted with "0 new samples" — **NOT the detonation
+  wall**: root cause was the host's missing system CA bundle
+  (`/etc/ssl/certs/ca-certificates.crt` absent → Python `CERTIFICATE_VERIFY_FAILED`
+  on every MalwareBazaar HTTPS call; even Debian-patched `certifi` points at that
+  missing file). Fixed **without sudo / system change**: driver now builds a
+  user-space CA bundle from `/usr/share/ca-certificates/mozilla/*.crt` (122 certs)
+  and exports `SSL_CERT_FILE` (cert verification kept ON — never disabled). Relaunched:
+  fetch now works, manifest 84→87+ and growing with new x86-64 samples. So Track-1
+  broadening **is** feasible; the corpus was never actually exhausted. Also added
+  `PYTHONUNBUFFERED=1` for real-time child logs. (`sudo update-ca-certificates`
+  would be the cleaner permanent host fix; left to the user.)
 
 ## 8. Task B runbook — broaden the malware corpus (overnight)
 
