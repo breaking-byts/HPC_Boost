@@ -179,6 +179,18 @@ listwise/utility objective; eval top-1/top-k regret on held-out binaries, §10).
   Data cannot be ready by morning unless the host is reached and the driver
   launched. Runbook below (§8).
 
+- **2026-06-22** — **Task B driver LAUNCHED and running** on the host (Mac back on
+  campus LAN; host at `10.110.14.249`). Fetching x86-64 candidates from
+  Mirai/Gafgyt/Bashlite/Tsunami/XorDDoS/Dofloo/Ddostf/Hajime/Kaiji (target 150,
+  have 83). Two driver bugs found+fixed (both failed closed, never unsafe):
+  (1) restrict-check grep pattern `restrict=.on.` → `restrict=on`;
+  (2) used `GROUPS` as a var name — it's a **bash special read-only array** (its
+  value was the gid `1000`), renamed to `GROUPS_FILE`. Key is in host
+  `~/hpcboost_collect/.mb_env` (sourced at launch). Detached via `setsid nohup`.
+  Overnight: fetch → triage → collect runners (contained) → rebuild
+  `labeled_dataset_track1.csv` → marker `/tmp/broaden_done`. Morning: pull + re-run
+  gate/recommender (needs Mac on campus LAN).
+
 ## 8. Task B runbook — broaden the malware corpus (overnight)
 
 Preconditions: **on the campus LAN**; `MB_API_KEY` exported on the host; clean-base
