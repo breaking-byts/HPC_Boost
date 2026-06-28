@@ -1,0 +1,18 @@
+{
+  "n_rows": 520,
+  "n_binaries": 104,
+  "n_malware_binaries": 89,
+  "n_benign_binaries": 15,
+  "n_candidates": 715,
+  "outer_folds": 5,
+  "headroom_per_binary_vs_global_f1": 0.005636978579481422,
+  "headroom_per_binary_vs_global_balacc": 0.011161048689138586,
+  "headroom_per_binary_vs_best_global_f1": 0.022883295194508046,
+  "reachable_fraction_balacc": 1.0,
+  "divergence_distinct_binary_subsets": 17,
+  "divergence_binary_choices": 104,
+  "stability_median_rep_jaccard": 0.9904895104895105,
+  "stability_median_best_consistency": 1.0,
+  "stability_median_feature_cv": 0.36901061522477985,
+  "target_tpr": 0.95
+}

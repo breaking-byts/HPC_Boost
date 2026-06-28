@@ -1,0 +1,266 @@
+10/9/22, 5:12 PM
+
+IIIT Delhi Mail - HPC research project update
+
+Mitali Sinha <mitalis@iiitd.ac.in>
+
+HPC research project update
+M Badri <badri17164@iiitd.ac.in>
+Fri, Nov 13, 2020 at 3:55 PM
+To: Mitali Sinha <mitalis@iiitd.ac.in>
+Cc: Fahad Nayyar <fahad17049@iiitd.ac.in>, Vishal Samal <vishal17209@iiitd.ac.in>, Sujay Deb <sdeb@iiitd.ac.in>
+Sir,
+This is to inform that we got DATE 2021 results today evening for our HPC work. Though the paper missed
+acceptance, the idea has got good feedback as far as we could see. Following attachment is the mail received from
+them.
+Thanks and Regards,
+FEEDBACK RECEIVED:
+On behalf of the Technical Program Committee, I am sorry to inform you that your submission to DATE 2021
+Title: HPC-Boost: A Binary driven ML Framework for boosting HPC based Runtime Attack Detection
+Authors: M Badri, Fahad Nayyar, Vishal Samal, Mitali Sinha and Sujay Deb
+Number: #1970
+has not been accepted.
+
+The selection process was very competitive. Indeed, the acceptance rate of regular papers is 24%. Cumulative
+acceptance rate for all regular papers and IPs is 36% of the submitted papers. Submissions involved more than 2600
+people, from 33 different countries.
+The reviews related to your submission from the DATE TPC committee are included at the end of this e-mail. I hope
+they will provide you with useful feedback. Please note that this year the overall score ranges from -3 to +3.
+I would like to sincerely thank you for your submission to DATE 2021 and, despite the outcome of this submission, I
+hope to see you at the online DATE 2021 event during February 1-5, 2021.
+The full conference program (including your paper slot and allocated IP session) will be published online very soon
+at https://www.date-conference.com.
+Please note that the registration to the conference is only possible via the online registration platform, which is now
+open: https://www.date-conference.com/registration
+
+Best regards,
+Ian O'Connor, TPC Chair DATE 2021
+DATE 2021 Program Chair
+papers@date-conference.com
+http://www.date-conference.com
+============================================================================
+DATE 2021 Reviews for Submission #1970
+============================================================================
+Title: HPC-Boost: A Binary driven ML Framework for boosting HPC based Runtime Attack Detection
+Authors: M Badri, Fahad Nayyar, Vishal Samal, Mitali Sinha and Sujay Deb
+============================================================================
+https://mail.google.com/mail/u/0/?ik=e3c52a9729&view=pt&search=all&permmsgid=msg-f%3A1683257420137544064&simpl=msg-f%3A168325…
+
+1/5
+
+10/9/22, 5:12 PM
+
+IIIT Delhi Mail - HPC research project update
+
+REVIEWER #1
+============================================================================
+--------------------------------------------------------------------------Reviewer's Scores
+--------------------------------------------------------------------------Overall Value: 1
+Summary of ideas
+--------------------------------------------------------------------------This paper works in the context of anomaly detection using Hardware Performance
+Counters (HPCs), whose values over time can be used to characterize benign and
+malicious programs. Here the authors consider the problem of selecting which
+counters to use for optimal performance - Although many (400-500) exist, only
+few registers (4 for Intel, 6 for AMD) can be used to sample them at the same
+time. Although more can be collected at the same time, this will be done in a
+multiplexed fashion. Therefore, the authors of this paper discuss how to select
+top HPCs for a given platform. The purpose of this selection is to classify
+binaries as malware or benign programs. Therefore, the approach consists of
+(roughly) two steps: 1) a "feature extractor" that extracts features from a
+binary and 2) a "ranking module" that classifies the extracted features with a
+trained ML model.
+--------------------------------------------------------------------------Strong points
+--------------------------------------------------------------------------Besides a number of typos, the paper is well written and easy to follow. The
+problem under discussion is an interesting one, as it is an obvious selection
+problem that is so far (mostly) ignored in the literature. The approach of
+selection is interesting, capturing various important aspects of the counters
+(e.g., consistency, variability, inter-correlation). By using a feature
+extractor there is no need for a large data collection at each deployment, which
+improves the ease-of-use. On the flipside, this creates an additional approximation
+layer that could lose some precision. I expect that this is worth it, as even
+slightly suboptimal events will lead to a performance improvements over poorly
+chosen counters.
+--------------------------------------------------------------------------Weak points
+--------------------------------------------------------------------------The description of the malicious programs could be extended, as it is not very
+clear how significant the modifications to benign programs are. Do the results
+change at all depending on the type of malware that is compared against? For
+example, if branch instructions are included then the branch-related counters
+should have an advantage in detection of such malware - Is this taken into
+consideration at all?
+--------------------------------------------------------------------------Other comments
+--------------------------------------------------------------------------* p1: "boosting" in title should be capitalized?
+* p1: "Due to its ability" -> "Due to their ability"
+* p1: "to unreliable" -> "to an unreliable"
+* p1: "almost 4" -> "at most 4"
+* p1: "of actual binary" -> "of the actual binary"
+* p1: "train ML model" -> "train a ML model"
+* p1: "ml model" -> "ML model"
+* p2: Various sentences starting with a reference "[...]", which is bad form
+* p3: The various parts of the ranking module are first listed and then discussed in a different
+order, which is slightly confusing
+* p3: The "Hirsh et al., 1991" reference is in the wrong style?
+* p3: I would suggest mentioning the normalization of the scores before discussing the different
+scores (it is now remarked afterwards), as this confused me initially in the description
+* p4: "long100 and beyond" missing bracket
+* p4: "They [21]" weird use of the word "They"
+* p5: "This neural network learn" -> "This neural network learns"
+---------------------------------------------------------------------------
+
+============================================================================
+https://mail.google.com/mail/u/0/?ik=e3c52a9729&view=pt&search=all&permmsgid=msg-f%3A1683257420137544064&simpl=msg-f%3A168325…
+
+2/5
+
+10/9/22, 5:12 PM
+
+IIIT Delhi Mail - HPC research project update
+
+REVIEWER #2
+============================================================================
+--------------------------------------------------------------------------Reviewer's Scores
+--------------------------------------------------------------------------Overall Value: -2
+Summary of ideas
+--------------------------------------------------------------------------The main idea of the paper is to use HPC events to detect runtime attacks. The authors proposed to
+monitor selective HPC events because of constraints in the number of registers in a processor. The HPC
+events are selected based on the statistical ranking proposed by the authors. In addition, the authors
+also used machine learning for mapping features of a binary program to the ranked HPC events to boost
+the performance. A recommender system is also used to provide suitable HPC events for a particular
+binary such that the performance of attack detection increases.
+--------------------------------------------------------------------------Strong points
+--------------------------------------------------------------------------The idea of ranking HPC events for a particular binary program is nice.
+--------------------------------------------------------------------------Weak points
+--------------------------------------------------------------------------There is little to no contribution.
+The paper is technically not strong. Some details are mentioned superficially or omitted
+intentionally.
+Experiments are not validated using any standard set of attack programs. Instead, the authors used
+self-crafted attack programs.
+There is no discussion or validation on the overhead of the methodology.
+--------------------------------------------------------------------------Other comments
+--------------------------------------------------------------------------The editorial quality of the paper is very poor. There are a significant number of grammatical and
+typographical errors in the manuscript. Most of the figures and tables are not explained at all, which
+makes the paper difficult to follow. However, these are not considered during the technical evaluation
+of the manuscript. The paper has several technical issues, which are listed below:
+1. "We use this mechanism to create a labeled dataset of workload.." - Does the labeled dataset
+contain both malicious and benign processes? It is not clearly mentioned. I assume, since the
+objective of the paper is to detect an anomaly, the dataset contains only benign workloads. Then, what
+are the types of workload used for dataset creation? For which features of the unknown attack
+programs, the method will detect it as an anomaly? The motivation behind the correctness of the
+proposed approach is missing from the paper.
+2. "Different binaries should be monitored with different sets of HPC events for better anomaly
+detection" - For an attack program during runtime, how the method works? I understand that the HPC
+events are selected by analyzing the HPC values and binary features from the recommender system. But
+to get any statistically significant HPC observations, any program needs to be executed multiple times
+or for a specific window. What is the detection time of the attack? Do they get detected before its
+completion? For example, in Fig. 4 the x-axis is time step in minutes. Most of the well-known attacks
+(malwares, trojans, etc.) do not require such an amount of time.
+3. The authors have mentioned performing time-series analysis. Then I assume the HPC events are
+sampled. What is the sampling frequency? Different binaries can behave differently for a fixed
+sampling frequency. How the methodology handles such an obstacle?
+4. Where the time-series component is considered in the equation on Page 3? First of all, the equation
+is not explained properly, and it does not have any expression to handle the time component.
+5. The discussion on the stationary score is a bit verbose. It will be better to understand if it is
+explained with some mathematical expressions.
+"Depending on the length of the time series data at hand, we classified the data streams as short(25100) and long100 and beyond)." - The idea of short and long is not clear in the discussion.
+6. What is the execution time of the feature extractor module? How it affects the detection time
+https://mail.google.com/mail/u/0/?ik=e3c52a9729&view=pt&search=all&permmsgid=msg-f%3A1683257420137544064&simpl=msg-f%3A168325…
+
+3/5
+
+10/9/22, 5:12 PM
+
+IIIT Delhi Mail - HPC research project update
+
+during runtime?
+7. Providing results on self-generated attack codes is unfair for the evaluation. The authors should
+consider actual malware codes. There are lots of repositories available on the internet for such
+programs.
+---------------------------------------------------------------------------
+
+============================================================================
+REVIEWER #3
+============================================================================
+--------------------------------------------------------------------------Reviewer's Scores
+--------------------------------------------------------------------------Overall Value: -1
+Summary of ideas
+--------------------------------------------------------------------------The paper proposes a new event recommendation framework to enhance the run-time detection of anomalies
+using HPC.
+The framework consists of 3 main phases:
+- feature extractor,
+- ranking module,
+- recommender module.
+An experimental study is provided on an intel i5, Ubuntu 18.04 LTS, where anomalies are artificially
+added by changing opcodes, operands, insert function calls, and branch/jmp instructions.
+--------------------------------------------------------------------------Strong points
+--------------------------------------------------------------------------The topic of the paper and their idea of giving information on the relevance of HPC is of great
+interest to the community.
+--------------------------------------------------------------------------Weak points
+--------------------------------------------------------------------------Detailed proofreading would greatly benefit the quality of the paper.
+The experimental study/experimental setup is not detailed enough, especially as the binaries are selfmade and HPC events/importance highly depend on the underlying activities.
+--------------------------------------------------------------------------Other comments
+--------------------------------------------------------------------------The results (highlighted in B.2) and B.3)) are kind of straightforward and more insights would improve
+the quality of the paper. For example, dividing the binary set into different categories and studying
+the differences in HPC events.
+---------------------------------------------------------------------------
+
+============================================================================
+REVIEWER #4
+============================================================================
+--------------------------------------------------------------------------Reviewer's Scores
+--------------------------------------------------------------------------Overall Value: -1
+Summary of ideas
+--------------------------------------------------------------------------While state-of-the-art runtime attack detection tools using HPC don't differentiate
+the events set, and their importance for the decisional criteria, the authors propose
+a "binary features-driven HPC event recommendation framework" to improve runtime
+attack detection.
+Indeed, the authors noticed that HPC based anomaly detectors rarely pay attention to
+the properties of actual binary under attack. Moreover, the new idea includes to use
+statistical methods to rank the events based on the sampled HPC data streams of the
+programs.
+https://mail.google.com/mail/u/0/?ik=e3c52a9729&view=pt&search=all&permmsgid=msg-f%3A1683257420137544064&simpl=msg-f%3A168325…
+
+4/5
+
+10/9/22, 5:12 PM
+
+IIIT Delhi Mail - HPC research project update
+
+The framework is mainly composed by three modules. For each binary, the "Ranking
+module" monitors every HPC event. Then, the "Feature Extractor module" extracts
+relevant binary features in the form of a vector. The goal of the Feature Extractor
+is to capture the essence of the binary in a lightweight manner. Then, during the
+training time, the model in the "Recommender module" trains on these binary's
+feature vectors and probability scores corresponding to the HPC event ranking for
+that binary. Finally, during the testing phase, the Feature extraction module
+extracts the feature vector from the new binary, and the trained Recommender module
+obtains the HPC event ranking for this feature vector.
+Tests show that binary specific event selection is important, because exchanging
+different ranking position events causes efficiency degradation.
+--------------------------------------------------------------------------Strong points
+--------------------------------------------------------------------------The idea is interesting, and it seems to work.
+The paper also addresses false positive and negatives, improving the efficiency of
+the framework, and showing that some deep work on the topic has been done.
+In terms of performance, the pipeline composed by the three modules won�t incur much
+overhead, because authors claim they are not computationally heavy, once deployed
+after the training.
+--------------------------------------------------------------------------Weak points
+--------------------------------------------------------------------------It would be interesting to see more data, especially a comparison between the
+proposed solution and previous solutions, both in terms of performance and efficiency.
+Moreover, data and charts in the paper are not easily readable, and often units of
+measures are missing and poor explanations are given.
+--------------------------------------------------------------------------Other comments
+--------------------------------------------------------------------------page 3, section B, paragraph "Spread Score": "in the of": missing word?
+same page, second columns: "This test however independent of the time series nature of the data
+though": missing verb?
+fig. 5 labels (a) and (b) are not clear
+poor acronyms explanations (e.g. CFG, BFS, TP, TN, ...), probably given as known?
+figure 6 misses legend
+---------------------------------------------------------------------------
+
+-DATE 2021 - https://www.softconf.com/date21/conference
+[Quoted text hidden]
+
+https://mail.google.com/mail/u/0/?ik=e3c52a9729&view=pt&search=all&permmsgid=msg-f%3A1683257420137544064&simpl=msg-f%3A168325…
+
+5/5
+
+

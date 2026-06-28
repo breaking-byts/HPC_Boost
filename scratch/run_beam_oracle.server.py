@@ -4,17 +4,6 @@ Detection-aware candidate-pool oracle for the four-PMU constraint.
 
 Candidate generation is nested inside each outer training fold. Outer-test
 labels are used only by the explicitly non-deployable Candidate-Oracle router.
-
-V3 note — the per-sample / per-group oracle routers intentionally route
-different samples (or groups) to different 4-event subsets, which exceeds the
-single fixed 4-PMU programming budget that real hardware allows. This is BY
-DESIGN, not a defect: these routers are non-deployable CEILINGS whose only job
-is to measure headroom. The `global` granularity is the one truly deployable
-point (a single fixed 4-PMU subset for everything); the gap above it quantifies
-how much accuracy a future static recommender could (per_family/per_full_label)
-or could not (per_sample) recover. The experiment exists to justify continued
-research by showing that headroom is large, not to ship an implementable
-multi-subset detector.
 """
 from __future__ import annotations
 

@@ -1,0 +1,460 @@
+{
+  "meta": {
+    "results_root": "/Users/leelanshkharbanda/Desktop/HPC Boost/oracle_results/data/processed/results",
+    "note": "F1 is majority-class inflated on this ~83% positive data; balanced accuracy (mean of recall and specificity) is the honest summary metric. The trivial always-malware baseline scores F1 ~0.91 and balanced accuracy exactly 0.50.",
+    "positive_class": "malware (label 1)"
+  },
+  "stratified": {
+    "class_counts": {
+      "malware": 2884,
+      "benign": 586
+    },
+    "pooled": {
+      "2SMaRT": {
+        "tp": 2823,
+        "fp": 504,
+        "tn": 82,
+        "fn": 61,
+        "n": 3470,
+        "precision": 0.848512173128945,
+        "recall": 0.9788488210818308,
+        "specificity": 0.13993174061433447,
+        "f1": 0.9090323619384962,
+        "accuracy": 0.8371757925072046,
+        "fpr": 0.8600682593856656,
+        "balanced_accuracy": 0.5593902808480826,
+        "mcc": 0.22387076923359245,
+        "strategy": "2SMaRT"
+      },
+      "Global-Beam": {
+        "tp": 2815,
+        "fp": 465,
+        "tn": 121,
+        "fn": 69,
+        "n": 3470,
+        "precision": 0.8582317073170732,
+        "recall": 0.9760748959778086,
+        "specificity": 0.20648464163822525,
+        "f1": 0.9133679428942246,
+        "accuracy": 0.8461095100864553,
+        "fpr": 0.7935153583617748,
+        "balanced_accuracy": 0.5912797688080169,
+        "mcc": 0.3006334085068624,
+        "strategy": "Global-Beam"
+      },
+      "Candidate-Oracle": {
+        "tp": 2884,
+        "fp": 129,
+        "tn": 457,
+        "fn": 0,
+        "n": 3470,
+        "precision": 0.9571855293727182,
+        "recall": 1.0,
+        "specificity": 0.7798634812286689,
+        "f1": 0.9781244700695269,
+        "accuracy": 0.9628242074927954,
+        "fpr": 0.22013651877133106,
+        "balanced_accuracy": 0.8899317406143344,
+        "mcc": 0.8639872910629615,
+        "strategy": "Candidate-Oracle"
+      }
+    },
+    "trivial_baseline": {
+      "tp": 2884,
+      "fp": 586,
+      "tn": 0,
+      "fn": 0,
+      "n": 3470,
+      "precision": 0.8311239193083574,
+      "recall": 1.0,
+      "specificity": 0.0,
+      "f1": 0.9077746301542337,
+      "accuracy": 0.8311239193083574,
+      "fpr": 1.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0,
+      "strategy": "Trivial (always malware)"
+    },
+    "fold_vs_pooled": {
+      "2SMaRT": {
+        "f1_fold_mean": 0.909032072355898,
+        "f1_fold_mean_from_aggregate_csv": 0.909032,
+        "f1_pooled": 0.9090323619384962,
+        "n_folds": 5
+      },
+      "Global-Beam": {
+        "f1_fold_mean": 0.9133750204471512,
+        "f1_fold_mean_from_aggregate_csv": 0.913375,
+        "f1_pooled": 0.9133679428942246,
+        "n_folds": 5
+      },
+      "Candidate-Oracle": {
+        "f1_fold_mean": 0.978139119378951,
+        "f1_fold_mean_from_aggregate_csv": 0.978139,
+        "f1_pooled": 0.9781244700695269,
+        "n_folds": 5
+      }
+    },
+    "capped_oracle_curve": [
+      {
+        "tp": 2815,
+        "fp": 465,
+        "tn": 121,
+        "fn": 69,
+        "n": 3470,
+        "precision": 0.8582317073170732,
+        "recall": 0.9760748959778086,
+        "specificity": 0.20648464163822525,
+        "f1": 0.9133679428942246,
+        "accuracy": 0.8461095100864553,
+        "fpr": 0.7935153583617748,
+        "balanced_accuracy": 0.5912797688080169,
+        "mcc": 0.3006334085068624,
+        "pool_size": 1,
+        "errors": 534
+      },
+      {
+        "tp": 2838,
+        "fp": 439,
+        "tn": 147,
+        "fn": 46,
+        "n": 3470,
+        "precision": 0.8660360085444003,
+        "recall": 0.9840499306518724,
+        "specificity": 0.2508532423208191,
+        "f1": 0.9212790131472164,
+        "accuracy": 0.8602305475504323,
+        "fpr": 0.7491467576791809,
+        "balanced_accuracy": 0.6174515864863458,
+        "mcc": 0.38398869978909106,
+        "pool_size": 2,
+        "errors": 485
+      },
+      {
+        "tp": 2869,
+        "fp": 383,
+        "tn": 203,
+        "fn": 15,
+        "n": 3470,
+        "precision": 0.8822263222632226,
+        "recall": 0.9947988904299584,
+        "specificity": 0.3464163822525597,
+        "f1": 0.9351368970013039,
+        "accuracy": 0.8853025936599423,
+        "fpr": 0.6535836177474402,
+        "balanced_accuracy": 0.6706076363412591,
+        "mcc": 0.5268310735196878,
+        "pool_size": 5,
+        "errors": 398
+      },
+      {
+        "tp": 2876,
+        "fp": 355,
+        "tn": 231,
+        "fn": 8,
+        "n": 3470,
+        "precision": 0.8901268956979264,
+        "recall": 0.9972260748959778,
+        "specificity": 0.39419795221843,
+        "f1": 0.9406377759607523,
+        "accuracy": 0.8953890489913545,
+        "fpr": 0.60580204778157,
+        "balanced_accuracy": 0.6957120135572039,
+        "mcc": 0.5790638951548678,
+        "pool_size": 10,
+        "errors": 363
+      },
+      {
+        "tp": 2881,
+        "fp": 299,
+        "tn": 287,
+        "fn": 3,
+        "n": 3470,
+        "precision": 0.9059748427672956,
+        "recall": 0.9989597780859917,
+        "specificity": 0.48976109215017066,
+        "f1": 0.9501978891820579,
+        "accuracy": 0.9129682997118156,
+        "fpr": 0.5102389078498294,
+        "balanced_accuracy": 0.7443604351180811,
+        "mcc": 0.6615988818226107,
+        "pool_size": 25,
+        "errors": 302
+      },
+      {
+        "tp": 2882,
+        "fp": 257,
+        "tn": 329,
+        "fn": 2,
+        "n": 3470,
+        "precision": 0.9181267919719656,
+        "recall": 0.9993065187239945,
+        "specificity": 0.5614334470989761,
+        "f1": 0.9569981736676074,
+        "accuracy": 0.9253602305475505,
+        "fpr": 0.43856655290102387,
+        "balanced_accuracy": 0.7803699829114853,
+        "mcc": 0.7151518922986385,
+        "pool_size": 50,
+        "errors": 259
+      },
+      {
+        "tp": 2884,
+        "fp": 228,
+        "tn": 358,
+        "fn": 0,
+        "n": 3470,
+        "precision": 0.9267352185089974,
+        "recall": 1.0,
+        "specificity": 0.6109215017064846,
+        "f1": 0.961974649766511,
+        "accuracy": 0.9342939481268011,
+        "fpr": 0.3890784982935154,
+        "balanced_accuracy": 0.8054607508532423,
+        "mcc": 0.7524376860417107,
+        "pool_size": 100,
+        "errors": 228
+      },
+      {
+        "tp": 2884,
+        "fp": 185,
+        "tn": 401,
+        "fn": 0,
+        "n": 3470,
+        "precision": 0.9397197784294559,
+        "recall": 1.0,
+        "specificity": 0.6843003412969283,
+        "f1": 0.9689232319838738,
+        "accuracy": 0.946685878962536,
+        "fpr": 0.31569965870307165,
+        "balanced_accuracy": 0.8421501706484642,
+        "mcc": 0.8019043366279737,
+        "pool_size": 250,
+        "errors": 185
+      },
+      {
+        "tp": 2884,
+        "fp": 158,
+        "tn": 428,
+        "fn": 0,
+        "n": 3470,
+        "precision": 0.948060486522025,
+        "recall": 1.0,
+        "specificity": 0.7303754266211604,
+        "f1": 0.973337833277084,
+        "accuracy": 0.9544668587896253,
+        "fpr": 0.2696245733788396,
+        "balanced_accuracy": 0.8651877133105802,
+        "mcc": 0.8321298470228002,
+        "pool_size": 500,
+        "errors": 158
+      },
+      {
+        "tp": 2884,
+        "fp": 137,
+        "tn": 449,
+        "fn": 0,
+        "n": 3470,
+        "precision": 0.9546507778881165,
+        "recall": 1.0,
+        "specificity": 0.7662116040955631,
+        "f1": 0.9767993226079593,
+        "accuracy": 0.9605187319884726,
+        "fpr": 0.23378839590443687,
+        "balanced_accuracy": 0.8831058020477816,
+        "mcc": 0.8552569811914609,
+        "pool_size": 1000,
+        "errors": 137
+      },
+      {
+        "tp": 2884,
+        "fp": 129,
+        "tn": 457,
+        "fn": 0,
+        "n": 3470,
+        "precision": 0.9571855293727182,
+        "recall": 1.0,
+        "specificity": 0.7798634812286689,
+        "f1": 0.9781244700695269,
+        "accuracy": 0.9628242074927954,
+        "fpr": 0.22013651877133106,
+        "balanced_accuracy": 0.8899317406143344,
+        "mcc": 0.8639872910629615,
+        "pool_size": 1500,
+        "errors": 129
+      }
+    ]
+  },
+  "group_kfold": {
+    "class_counts": {
+      "malware": 2884,
+      "benign": 586
+    },
+    "pooled": {
+      "2SMaRT": {
+        "tp": 2685,
+        "fp": 493,
+        "tn": 93,
+        "fn": 199,
+        "n": 3470,
+        "precision": 0.8448709880427943,
+        "recall": 0.930998613037448,
+        "specificity": 0.15870307167235495,
+        "f1": 0.885846255361267,
+        "accuracy": 0.8005763688760807,
+        "fpr": 0.841296928327645,
+        "balanced_accuracy": 0.5448508423549014,
+        "mcc": 0.1210538659648793,
+        "strategy": "2SMaRT"
+      },
+      "Global-Beam": {
+        "tp": 2692,
+        "fp": 454,
+        "tn": 132,
+        "fn": 192,
+        "n": 3470,
+        "precision": 0.8556897647806738,
+        "recall": 0.9334257975034674,
+        "specificity": 0.22525597269624573,
+        "f1": 0.8928689883913764,
+        "accuracy": 0.8138328530259366,
+        "fpr": 0.7747440273037542,
+        "balanced_accuracy": 0.5793408850998566,
+        "mcc": 0.2043250474546463,
+        "strategy": "Global-Beam"
+      },
+      "Candidate-Oracle": {
+        "tp": 2881,
+        "fp": 109,
+        "tn": 477,
+        "fn": 3,
+        "n": 3470,
+        "precision": 0.9635451505016722,
+        "recall": 0.9989597780859917,
+        "specificity": 0.8139931740614335,
+        "f1": 0.9809329247531494,
+        "accuracy": 0.9677233429394813,
+        "fpr": 0.18600682593856654,
+        "balanced_accuracy": 0.9064764760737125,
+        "mcc": 0.8821768069252037,
+        "strategy": "Candidate-Oracle"
+      }
+    },
+    "trivial_baseline": {
+      "tp": 2884,
+      "fp": 586,
+      "tn": 0,
+      "fn": 0,
+      "n": 3470,
+      "precision": 0.8311239193083574,
+      "recall": 1.0,
+      "specificity": 0.0,
+      "f1": 0.9077746301542337,
+      "accuracy": 0.8311239193083574,
+      "fpr": 1.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0,
+      "strategy": "Trivial (always malware)"
+    },
+    "fold_vs_pooled": {
+      "2SMaRT": {
+        "f1_fold_mean": 0.8732097917366948,
+        "f1_fold_mean_from_aggregate_csv": 0.87321,
+        "f1_pooled": 0.885846255361267,
+        "n_folds": 5
+      },
+      "Global-Beam": {
+        "f1_fold_mean": 0.882023892765285,
+        "f1_fold_mean_from_aggregate_csv": 0.882024,
+        "f1_pooled": 0.8928689883913764,
+        "n_folds": 5
+      },
+      "Candidate-Oracle": {
+        "f1_fold_mean": 0.9769969118989191,
+        "f1_fold_mean_from_aggregate_csv": 0.976997,
+        "f1_pooled": 0.9809329247531494,
+        "n_folds": 5
+      }
+    },
+    "family_structure": {
+      "total_samples": 3470,
+      "n_malware": 2884,
+      "n_benign": 586,
+      "total_families": 19,
+      "n_benign_families": 1,
+      "n_malware_families": 18,
+      "n_mixed_families": 0,
+      "benign_family_ids": [
+        "17"
+      ],
+      "malware_family_ids": [
+        "0",
+        "1",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "18",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "mixed_family_ids": []
+    },
+    "per_fold_counts": [
+      {
+        "fold": 1,
+        "test_samples": 1041,
+        "test_malware": 923,
+        "test_benign": 118,
+        "test_families": 1,
+        "train_families": 17,
+        "source": "summary.json"
+      },
+      {
+        "fold": 2,
+        "test_samples": 862,
+        "test_malware": 745,
+        "test_benign": 117,
+        "test_families": 1,
+        "train_families": 17,
+        "source": "summary.json"
+      },
+      {
+        "fold": 3,
+        "test_samples": 647,
+        "test_malware": 530,
+        "test_benign": 117,
+        "test_families": 1,
+        "train_families": 17,
+        "source": "summary.json"
+      },
+      {
+        "fold": 4,
+        "test_samples": 460,
+        "test_malware": 343,
+        "test_benign": 117,
+        "test_families": 8,
+        "train_families": 10,
+        "source": "summary.json"
+      },
+      {
+        "fold": 5,
+        "test_samples": 460,
+        "test_malware": 343,
+        "test_benign": 117,
+        "test_families": 7,
+        "train_families": 11,
+        "source": "summary.json"
+      }
+    ]
+  }
+}

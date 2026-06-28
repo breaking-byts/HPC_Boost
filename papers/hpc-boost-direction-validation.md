@@ -24,15 +24,31 @@ each test sample to a retained candidate that predicts it correctly if one
 exists.
 
 The result is strong evidence that binary-conditional event choice is worth
-pursuing. Across 3,470 RaDaR samples, Candidate-Oracle achieved 0.9781 mean F1,
-compared with 0.9090 for fold-local 2SMaRT and 0.9134 for the best global
-beam-search subset. It recovered 436 of the 565 2SMaRT errors and reduced total
-classification errors by 77.2%. However, this is a theoretical ceiling, not a
-deployable detector. It validates the existence of conditional headroom; it does
-not yet prove that a static-binary recommender can learn to realize that
-headroom. A capped-pool analysis shows that a top-25 candidate oracle achieves
-0.9502 F1, while the full approximately 1,200-candidate pool reaches 0.9781 F1;
-therefore, part of the ceiling comes from post-hoc selection over a large pool.
+pursuing. Under sample-stratified five-fold CV across 3,470 RaDaR samples,
+Candidate-Oracle achieved 0.9781 mean F1, compared with 0.9090 for fold-local
+2SMaRT and 0.9134 for the best global beam-search subset, recovering 436 of the
+565 2SMaRT errors (a 77.2% error reduction). We then re-ran the full pipeline
+with family-disjoint GroupKFold splits, which we treat as the primary
+publication-grade evaluation. Under fair splits the supervised baselines fall by
+roughly 3.5 F1 points (2SMaRT to 0.8732, Global-Beam to 0.8766) while the oracle
+is essentially unchanged (0.9781), so the oracle's gap over 2SMaRT widens from
+6.9 to 10.5 F1 points; on the hardest unseen family it widens to 17.5 points
+(2SMaRT 0.80 versus oracle 0.98). Crucially, F1 is the wrong headline metric on
+this 83%-malware set: a trivial always-malware baseline scores 0.8953 F1 -
+higher than either supervised baseline - so we report balanced accuracy as the
+honest primary metric. There the gap is far starker: 2SMaRT reaches only 0.545
+balanced accuracy (barely above the 0.500 trivial floor) against 0.914 for the
+oracle, a roughly 37-point honest gap. However, this is a theoretical ceiling,
+not a deployable detector, and most of it is out of a recommender's reach: a
+per-group routing analysis shows that the realistically attainable tier (one
+subset per family or full label, which a static recommender could approximate)
+recovers only about 5.5 of those 37 balanced-accuracy points, while the remaining
+~85% of the gap requires non-deployable per-sample routing. The result validates
+the existence of conditional headroom; it does not yet prove that a static-binary
+recommender can learn to realize the deployable fraction of it. A capped-pool
+analysis likewise shows that a top-25 candidate oracle achieves 0.9502 F1, while
+the full approximately 1,200-candidate pool reaches 0.9781 F1; therefore, part of
+the ceiling comes from post-hoc selection over a large pool.
 The correct next step is a controlled binary-tracing pilot that builds
 per-binary utility targets from multiple runs, then tests whether static binary
 features predict those targets.
@@ -220,7 +236,122 @@ XGBoost's histogram tree method.
 
 ## 5. Main Results
 
-### 5.1 Aggregate Metrics
+### 5.1 Primary Result: Family-Disjoint GroupKFold (Publication-Grade)
+
+The aggregate numbers were first computed under sample-stratified five-fold CV.
+Because RaDaR contains many same-family malware samples, stratified splits can
+place near-duplicate family members in both the train and test folds and inflate
+the supervised baselines. We therefore re-ran the full pipeline with
+family-disjoint GroupKFold splits (grouping by `family_gene`, five outer folds,
+three inner folds). This grouped run is the primary, publication-grade result;
+the stratified run in 5.2 is retained only as a secondary comparison that
+isolates the effect of the split protocol.
+
+| Strategy | F1 Mean | F1 Std | Precision | Recall | FPR | Balanced Acc | MCC |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Majority-Baseline | 0.8953 | 0.0400 | 0.8123 | 1.0000 | 1.0000 | 0.5000 | 0.0000 |
+| 2SMaRT | 0.8732 | 0.0515 | 0.8267 | 0.9306 | 0.8413 | 0.5447 | 0.1578 |
+| Global-Beam | 0.8766 | 0.0449 | 0.8316 | 0.9314 | 0.8123 | 0.5596 | 0.1789 |
+| Candidate-Oracle | 0.9781 | 0.0146 | 0.9574 | 1.0000 | 0.1725 | 0.9137 | 0.8898 |
+
+The first and most important observation is that **F1 is the wrong headline
+metric on this dataset**. RaDaR is 83% malware, so a degenerate classifier that
+labels everything malware scores 0.8953 F1 - higher than either supervised
+baseline. F1 rewards the majority class and hides what the baselines actually
+do. We therefore lead with **balanced accuracy** (the mean of TPR and TNR, with
+0.500 as the trivial floor) and report FPR and MCC alongside it.
+
+Under that honest lens, four things change relative to the stratified run, and
+all of them strengthen the thesis:
+
+1. The supervised baselines are barely better than chance on the minority
+   (benign) class: 2SMaRT reaches only 0.545 balanced accuracy and Global-Beam
+   0.560, both a hair above the 0.500 floor, with FPR above 0.81. Their high F1
+   is almost entirely the majority-class effect.
+2. The supervised F1 scores fall under fair splits (2SMaRT 0.9090 to 0.8732;
+   Global-Beam 0.9134 to 0.8766), confirming the stratified numbers were
+   inflated by family leakage - and both now sit *below* the always-malware F1.
+3. The oracle is essentially unchanged in F1 (0.9781 to 0.9781) and reaches
+   0.914 balanced accuracy, confirming the conditional-selection headroom is
+   not a leakage artifact and is real on the minority class.
+4. The oracle's advantage over 2SMaRT is 10.5 F1 points (0.9781 - 0.8732 =
+   0.1049) but roughly **37 points of balanced accuracy** (0.9137 - 0.5447 =
+   0.369), which is the honest measure of the headroom.
+
+The most persuasive evidence is the hardest held-out family. GroupKFold over
+`family_gene` produces three folds that each hold out one large unseen family
+and two folds that hold out clusters of smaller families:
+
+| Fold | Held-out test families | 2SMaRT F1 | Global-Beam F1 | Candidate-Oracle F1 | Majority F1 |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 1 family | 0.9165 | 0.9206 | 0.9957 | 0.9399 |
+| 2 | 1 family | 0.9311 | 0.9268 | 0.9874 | 0.9272 |
+| 3 | 1 family | 0.8035 | 0.8257 | 0.9788 | 0.9006 |
+| 4 | 8 families | 0.8546 | 0.8608 | 0.9581 | 0.8543 |
+| 5 | 7 families | 0.8605 | 0.8490 | 0.9703 | 0.8543 |
+
+On fold 3 the global selectors collapse on an unseen family (2SMaRT 0.80,
+Global-Beam 0.83) while the oracle holds at 0.98 - a 17.5-point gap. This is the
+clearest demonstration that one global four-event set generalizes poorly to a
+novel family, while a conditional router able to pick a family-appropriate subset
+does not. The same fold makes the F1-metric problem concrete: the always-malware
+baseline (0.9006) outscores both supervised selectors here, underscoring why
+balanced accuracy, not F1, must be the headline. This unseen-family behavior is
+the strongest single piece of evidence for the recommender thesis.
+
+### 5.1.1 Where the Headroom Lives: Per-Group Oracle Granularity
+
+The Candidate-Oracle in 5.1 routes each individual sample to a correct candidate
+using its outer-test label. That is the most permissive possible router and is
+fundamentally non-deployable: a static-binary recommender cannot make a fresh
+routing decision per execution. To locate how much of the headroom a *realistic*
+recommender could reach, we re-scored the same retained candidate pool under a
+ladder of routing granularities. At each granularity the oracle picks one subset
+per group (all samples sharing a `goal` category, a `family_gene` family, a full
+`category/family` label, or the single global subset) rather than one per sample.
+Coarser granularities are progressively closer to what a static recommender keyed
+on binary features could actually approximate; `per_sample` is the same
+non-deployable ceiling as 5.1.
+
+| Routing granularity | F1 | Balanced Acc | FPR | MCC | Deployable? |
+|---|---:|---:|---:|---:|---|
+| global (one subset for all) | 0.9008 | 0.5989 | 0.7696 | 0.3205 | Yes |
+| per_category | 0.9079 | 0.6279 | 0.7185 | 0.4038 | Approximable |
+| per_family | 0.9078 | 0.6277 | 0.7185 | 0.4019 | Approximable |
+| per_full_label | 0.9144 | 0.6535 | 0.6708 | 0.4582 | Approximable |
+| per_sample (ceiling) | 0.9781 | 0.9137 | 0.1725 | 0.8898 | No |
+
+(The `global` row here is an oracle-assisted single-subset choice and is therefore
+slightly above the training-only Global-Beam of 0.8766 F1 / 0.560 balanced
+accuracy in 5.1; the comparison of interest is across rows of this table, all of
+which share the same oracle assistance and differ only in routing granularity.)
+
+This table is the most important sobering result in the memo. The realistically
+attainable headroom - moving from one global subset to the finest *group*-level
+routing a static recommender could plausibly learn (`per_full_label`) - is only
+about **1.4 F1 points (0.9008 to 0.9144) and 5.5 balanced-accuracy points (0.599
+to 0.654)**. The dramatic jump happens only at `per_sample` (0.654 to 0.914
+balanced accuracy), which accounts for roughly 85% of the total headroom and is
+exactly the granularity no deployable recommender can reach. In other words, the
+37-point oracle gap headlined in 5.1 is real but is overwhelmingly a per-execution
+ceiling, not a per-binary opportunity.
+
+The implication for the next phase is concrete rather than discouraging: the
+recommender pilot should be evaluated against the `per_family` / `per_full_label`
+tier, not the `per_sample` ceiling, and a 3-5 F1-point per-binary oracle gain on
+our own traces (the go/no-go bar in Section 9.3) would already exceed the
+group-level headroom seen here. If per-binary utility on the custom dataset turns
+out to be no more separable than this group-level ladder, the recommender's
+realistic target is modest FPR reduction over the global subset, and the project
+should be framed and resourced on that basis.
+
+### 5.2 Sample-Stratified Aggregate Metrics (Secondary)
+
+The table below and the detailed analyses in 5.3-5.6 come from the original
+sample-stratified run. They remain useful for understanding the oracle's internal
+behavior (confusion structure, capped-pool sensitivity, candidate flatness), but
+the headline F1 values here are leakage-inflated and should not be quoted as the
+primary result; use 5.1 instead.
 
 | Strategy | F1 Mean | F1 Std | Precision | Recall | Accuracy | AUCPR |
 |---|---:|---:|---:|---:|---:|---:|
@@ -250,7 +381,7 @@ This pattern is exactly what HPC-Boost needs to justify the recommender:
 better global search gives only a small gain, while conditional routing gives a
 large gain.
 
-### 5.2 Pooled Confusion Counts
+### 5.3 Pooled Confusion Counts (Stratified Run)
 
 Across all 3,470 samples:
 
@@ -296,7 +427,7 @@ Relative to Global-Beam, Candidate-Oracle recovered 405 of 534 errors:
 \frac{405}{534} = 75.8\% \text{ error reduction}.
 \]
 
-### 5.3 Capped-Pool Oracle Analysis
+### 5.4 Capped-Pool Oracle Analysis (Stratified Run)
 
 The full Candidate-Oracle can select among roughly 1,200 retained candidates per
 fold. This makes it an intentionally optimistic ceiling. To understand how much
@@ -331,7 +462,7 @@ not that these are necessarily random low-performing models, but that a
 label-assisted router over a large pool will overestimate deployable
 performance.
 
-### 5.4 AUCPR Plateau
+### 5.5 AUCPR Plateau (Stratified Run)
 
 A deeper audit of the candidate files shows that the retained candidate pools
 are extremely flat under the training objective:
@@ -351,7 +482,7 @@ differentiated than fold-level inner AUCPR. If per-binary utility is also flat,
 the recommender should be trained to predict an FPR-safe candidate class or
 utility band rather than a precise top subset.
 
-### 5.5 Per-Fold Stability
+### 5.6 Per-Fold Stability (Stratified Run)
 
 Candidate-Oracle beat 2SMaRT on every fold:
 
@@ -527,15 +658,19 @@ runs of the same binary require different event subsets due to input,
 scheduling, or phase behavior, then one static top-4 label per binary may be
 unstable. The new data collection must measure this.
 
-### It does not rule out trace-level split leakage
+### Trace-level split leakage: now tested with GroupKFold
 
-The current oracle uses stratified random folds over RaDaR samples. If the
-dataset contains repeated executions of the same benign program, closely related
-malware variants, or family-level near-duplicates that cross train and test
-folds, both the baseline and oracle numbers may be optimistic. The artifact set
-available for this memo contains sample IDs and labels but not enough metadata
-to prove program- or family-disjoint splitting. A reviewer could reasonably ask
-for GroupKFold or leave-family-out evaluation.
+The original run used stratified random folds over RaDaR samples, which can let
+family-level near-duplicates cross the train and test folds. We have since
+addressed this directly with family-disjoint GroupKFold (Section 5.1). The result
+is reassuring rather than damaging: the supervised baselines were indeed
+leakage-inflated and drop by about 3.5 F1 points under grouped splits, but the
+oracle is essentially unchanged, so the conditional-selection headroom is not a
+split artifact - it grows from 6.9 to 10.5 F1 points (and from roughly 33 to 37
+points of balanced accuracy, the honest metric). A residual caveat remains
+for the eventual custom dataset: `family_gene` grouping prevents family leakage
+but not necessarily repeated-run or collection-session leakage, which the new
+collection must control explicitly by grouping on binary and session as well.
 
 ### It does not show that Global-Beam is meaningfully better than 2SMaRT
 
@@ -565,9 +700,11 @@ large dataset without first validating the target-construction protocol.
 
 The recommended next phase is a pilot with explicit go/no-go criteria.
 
-Before publication, the RaDaR oracle should also be rerun or supplemented with
-group-aware splits if suitable grouping metadata is available. At minimum, the
-paper should explicitly disclose that the present run is sample-stratified.
+The RaDaR oracle has now been rerun with family-disjoint GroupKFold splits
+(Section 5.1), which serve as the primary publication-grade numbers; the
+stratified run is reported only as a secondary split-methodology comparison. The
+custom collection should extend this discipline to grouping by binary and
+collection session, not only by family.
 
 ### 9.1 Unit of Recommendation
 
@@ -763,5 +900,31 @@ Primary local artifacts used:
 - `hpc_boost_v2/experiments/exp3_detection_aware_oracle/run_beam_oracle.py`
 - `hpc_boost_v2/experiments/exp3_detection_aware_oracle/analyze_pool_size.py`
 
-No external web sources were used in this memo. All quantitative claims are
-derived from the local experiment artifacts listed above.
+Family-disjoint GroupKFold run (primary, Section 5.1):
+
+- `oracle_results/data/processed/results/group_kfold_oracle/aggregate_metrics.csv`
+- `oracle_results/data/processed/results/group_kfold_oracle/fold_metrics.csv`
+- `oracle_results/data/processed/results/group_kfold_oracle/summary.json`
+- `oracle_results/data/processed/results/group_kfold_oracle/group_oracle_aggregate.csv`
+- `oracle_results/data/processed/results/group_kfold_oracle/config.json`
+- `oracle_results/data/processed/results/group_kfold_oracle/fold_*/predictions.csv`
+- `oracle_results/data/processed/results/group_kfold_oracle/fold_*/candidates.csv`
+- `oracle_results/data/processed/results/group_kfold_oracle/fold_*/group_oracle_metrics.json`
+
+Both the stratified and the family-disjoint runs are produced by a single
+consolidated script; the grouped run is just the same script with
+`--group-column family_gene` (which also switches inner CV to group-disjoint):
+
+- `hpc_boost_v2/experiments/exp3_detection_aware_oracle/run_beam_oracle.py`
+  (omit `--group-column` for the stratified run; add `--group-column family_gene`
+  for the primary grouped run)
+- `hpc_boost_v2/experiments/exp3_detection_aware_oracle/analyze_pool_size.py`
+  (capped-pool oracle curve, Section 5.4)
+- `hpc_boost_v2/experiments/exp3_detection_aware_oracle/analyze_honest_metrics.py`
+  (balanced accuracy, FPR, MCC, and the Majority baseline)
+
+The honest-metrics columns (balanced accuracy, FPR, MCC) and the
+Majority-Baseline row in Sections 5.1 and 5.3 are emitted directly by the
+consolidated run and by `analyze_honest_metrics.py`. No external web sources
+were used in this memo. All quantitative claims are derived from the local
+experiment artifacts listed above.

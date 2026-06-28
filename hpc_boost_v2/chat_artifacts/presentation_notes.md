@@ -39,9 +39,35 @@ We pitted HPC-Boost against the top industry and academic baselines:
 ## 4. The Results & The "Nuance"
 We evaluated the strategies using three different detectors: XGBoost (Supervised), OCSVM (Unsupervised), and Isolation Forest (Unsupervised).
 
-### The Big Win: Supervised Detection (XGBoost)
-* **Result:** HPC-Boost achieved an **F1 score of 0.9026**.
-* **Significance:** It beat 2SMaRT (0.898), Global-Fixed (0.901), and Random (0.901). It is the most accurate, physically-deployable method we tested. 
+### Read This First: Why F1 Is Misleading Here
+The RaDaR dataset is ~83% malware. A degenerate classifier that labels
+**everything** malware scores about **0.908 F1** on this split. So any method
+clustered near 0.90 F1 is, on F1 alone, statistically tied with "predict malware
+every time." F1 rewards the majority class and hides what a method actually does
+on the minority (benign) class. We therefore report **balanced accuracy** (mean
+of TPR and TNR; 0.500 = trivial floor) and **FPR** as the honest metrics, and we
+do not call small F1 gaps a "win."
+
+### Supervised Detection (XGBoost): Essentially a Tie
+* **Result:** HPC-Boost reached **0.9026 F1**, versus 2SMaRT 0.898, Global-Fixed
+  0.901, Random 0.902, and PCA 0.910.
+* **Honest reading:** Every one of these sits in the same neighborhood as the
+  ~0.908 always-malware baseline, and HPC-Boost is actually a hair *below* it.
+  Their balanced accuracy is only ~0.56 (barely above chance), because all of
+  them have high false-positive rates on benign samples. The correct takeaway is
+  that **single fixed-event-set selection - by any of these strategies - does not
+  meaningfully beat the trivial baseline on the honest metric.** This is not a
+  failure of HPC-Boost specifically; it is the motivation for the next experiment.
+
+### Where the Real Win Is: The Detection-Aware Oracle (Experiment 3)
+* The genuine result is not in this fixed-selection comparison. It is the
+  detection-aware candidate-pool oracle, which shows that **conditional** event
+  selection has large headroom: under fair family-disjoint splits the oracle
+  reaches **0.914 balanced accuracy** against ~0.545 for the best global selector
+  - a ~37-point honest gap. (Caveat for honesty: most of that gap needs
+  per-sample routing, which is non-deployable; the per-family/per-full-label tier
+  a real recommender could approximate recovers a smaller ~5.5 points. See the
+  validation paper, Sections 5.1 and 5.1.1.)
 
 ### The Nuance: Unsupervised Detection (OCSVM / IF)
 * **Result:** 2SMaRT beat HPC-Boost on unsupervised detectors (~0.67 vs ~0.60 F1).
