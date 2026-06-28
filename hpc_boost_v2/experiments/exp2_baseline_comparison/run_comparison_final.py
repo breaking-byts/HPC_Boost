@@ -294,7 +294,7 @@ def hpcboost_worker(
     """
     if feat_indices is None:
         # No ranking available → conservative default: predict benign
-        return (1, False)
+        return (0, False)
 
     Xtr_sub = Xtr_np[:, feat_indices]
     Xte_sub = xte_row[feat_indices].reshape(1, -1)
@@ -303,8 +303,10 @@ def hpcboost_worker(
         preds = train_and_predict(Xtr_sub, y_train, Xte_sub, det_name)
         return (int(preds[0]), True)
     except Exception as e:
-        # Don't silently swallow — record the error
-        return (1, False)
+        # Don't silently swallow — record the error, then fail safe to benign (0).
+        # (warnings are globally filtered to "ignore" at module load, so print.)
+        print(f"  ⚠ hpcboost_worker fit/predict failed ({det_name}): {e}", flush=True)
+        return (0, False)
 
 
 # ═══════════════════════════════════════════════════════════════════════

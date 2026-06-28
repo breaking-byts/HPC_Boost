@@ -1,17 +1,17 @@
 === exp5 per-binary oracle gate ===
-rows=225 binaries=45 (malware=22, benign=23) candidates=715 outer_folds=5
+rows=520 binaries=104 (malware=89, benign=15) candidates=715 outer_folds=5
 
 strategy             F1   BalAcc      FPR      MCC
-majority         0.6567   0.5000   1.0000   0.0000
-twosmart         0.8525   0.8423   0.2609   0.6973
-best_global      0.8918   0.8899   0.1565   0.7819
-global           0.9767   0.9773   0.0000   0.9564
-per_family       0.9815   0.9818   0.0000   0.9650
-per_binary       0.9815   0.9818   0.0000   0.9650
-per_run          0.9815   0.9818   0.0000   0.9650
+majority         0.9223   0.5000   1.0000   0.0000
+twosmart         0.9899   0.9677   0.0533   0.9303
+best_global      0.9771   0.9664   0.0267   0.8626
+global           0.9944   0.9888   0.0133   0.9619
+per_family       1.0000   1.0000   0.0000   1.0000
+per_binary       1.0000   1.0000   0.0000   1.0000
+per_run          1.0000   1.0000   0.0000   1.0000
 
 GATE (paper §9.3):
-  HEADROOM  per_binary - global   = +0.0047 F1, +0.0045 balanced-acc  (bar: +0.03..0.05 F1)
-            per_binary - best_global = +0.0897 F1; reachable/ceiling balacc fraction = 1.00
-  DIVERGENCE distinct subsets routed = 11 over 45 binary choices  (>1 => conditional)
-  STABILITY median rep-jaccard=0.979 best-subset-consistency=1.000 feature-CV=0.012
+  HEADROOM  per_binary - global   = +0.0056 F1, +0.0112 balanced-acc  (bar: +0.03..0.05 F1)
+            per_binary - best_global = +0.0229 F1; reachable/ceiling balacc fraction = 1.00
+  DIVERGENCE distinct subsets routed = 17 over 104 binary choices  (>1 => conditional)
+  STABILITY median rep-jaccard=0.990 best-subset-consistency=1.000 feature-CV=0.369
